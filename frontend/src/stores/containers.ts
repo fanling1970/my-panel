@@ -145,7 +145,7 @@ export const useContainerStore = defineStore('containers', () => {
    */
   async function containerAction(
     id: string,
-    action: 'start' | 'stop' | 'restart' | 'remove'
+    action: 'start' | 'stop' | 'restart' | 'remove' | 'pause' | 'unpause' | 'kill'
   ): Promise<void> {
     // 防止并发操作
     if (actionInProgress.value) {

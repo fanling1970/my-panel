@@ -21,6 +21,12 @@ export const useSystemStore = defineStore('system', () => {
     diskUsed: 0,
     diskTotal: 0,
     time: '',
+    cpuCores: 0,
+    hostname: '',
+    os: '',
+    kernel: '',
+    arch: '',
+    uptime: 0,
   })
   
   const loading = ref(false)
@@ -47,6 +53,12 @@ export const useSystemStore = defineStore('system', () => {
       stats.diskUsed = data.diskUsed ?? 0
       stats.diskTotal = data.diskTotal ?? 0
       stats.time = data.time ?? ''
+      stats.cpuCores = data.cpuCores ?? 0
+      stats.hostname = data.hostname ?? ''
+      stats.os = data.os ?? ''
+      stats.kernel = data.kernel ?? ''
+      stats.arch = data.arch ?? ''
+      stats.uptime = data.uptime ?? 0
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch system stats'
       // Don't reset stats on error, keep last known values

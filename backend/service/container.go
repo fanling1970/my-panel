@@ -98,6 +98,27 @@ func (s *ContainerService) RestartContainer(ctx context.Context, id string) erro
 	return err
 }
 
+// PauseContainer 暂停容器
+func (s *ContainerService) PauseContainer(ctx context.Context, id string) error {
+	err := s.dockerRepo.ContainerPause(ctx, id)
+	s.cacheRepo.InvalidateContainers()
+	return err
+}
+
+// UnpauseContainer 恢复容器
+func (s *ContainerService) UnpauseContainer(ctx context.Context, id string) error {
+	err := s.dockerRepo.ContainerUnpause(ctx, id)
+	s.cacheRepo.InvalidateContainers()
+	return err
+}
+
+// KillContainer 强制终止容器
+func (s *ContainerService) KillContainer(ctx context.Context, id string) error {
+	err := s.dockerRepo.ContainerKill(ctx, id, "SIGKILL")
+	s.cacheRepo.InvalidateContainers()
+	return err
+}
+
 // RemoveContainer 删除容器
 func (s *ContainerService) RemoveContainer(ctx context.Context, id string, force bool) error {
 	err := s.dockerRepo.ContainerRemove(ctx, id, container.RemoveOptions{Force: force})

@@ -301,11 +301,11 @@ func (r *Router) handleLogin(c *gin.Context) {
 		return
 	}
 
-	// 验证验证码
-	if !middleware.GetCaptchaManager().Verify(reqBody.CaptchaID, reqBody.Captcha) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "验证码错误或已过期"})
-		return
-	}
+	// 验证码校验已禁用（纯自用，登录无需验证码）
+	// if !middleware.GetCaptchaManager().Verify(reqBody.CaptchaID, reqBody.Captcha) {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "验证码错误或已过期"})
+	// 	return
+	// }
 
 	user, err := r.app.SQLiteRepo.GetUser(reqBody.Username)
 	if err != nil || user == nil {
@@ -408,6 +408,12 @@ func (r *Router) handleContainerAction(c *gin.Context) {
 		err = r.app.ContainerService.RestartContainer(ctx, reqBody.ContainerID)
 	case "remove":
 		err = r.app.ContainerService.RemoveContainer(ctx, reqBody.ContainerID, true)
+	case "pause":
+		err = r.app.ContainerService.PauseContainer(ctx, reqBody.ContainerID)
+	case "unpause":
+		err = r.app.ContainerService.UnpauseContainer(ctx, reqBody.ContainerID)
+	case "kill":
+		err = r.app.ContainerService.KillContainer(ctx, reqBody.ContainerID)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown action"})
 		return
@@ -2176,11 +2182,22 @@ func (r *Router) handleSystemStats(c *gin.Context) {
 	cpu, _ := tool.GetCPUUsage()
 	mem, _ := tool.GetMemoryUsage()
 	disk, _ := tool.GetDiskUsage()
+	host := tool.GetHostInfo()
 	c.JSON(http.StatusOK, model.SystemStats{
-		CPU:    cpu,
-		Memory: mem.Usage,
-		Disk:   disk.Usage,
-		Time:   time.Now().Format("2006-01-02 15:04:05"),
+		CPU:         cpu,
+		Memory:      mem.Usage,
+		MemoryUsed:  mem.Used,
+		MemoryTotal: mem.Total,
+		Disk:        disk.Usage,
+		DiskUsed:    disk.Used,
+		DiskTotal:   disk.Total,
+		Time:        time.Now().Format("2006-01-02 15:04:05"),
+		CPUCores:    host.CPUCores,
+		Hostname:    host.Hostname,
+		OS:          host.OS,
+		Kernel:      host.Kernel,
+		Arch:        host.Arch,
+		Uptime:      host.Uptime,
 	})
 }
 

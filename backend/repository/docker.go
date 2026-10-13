@@ -21,6 +21,9 @@ type IDockerRepository interface {
 	ContainerStop(ctx context.Context, containerID string, timeout *int) error
 	ContainerRestart(ctx context.Context, containerID string, timeout *int) error
 	ContainerRemove(ctx context.Context, containerID string, opts container.RemoveOptions) error
+	ContainerPause(ctx context.Context, containerID string) error
+	ContainerUnpause(ctx context.Context, containerID string) error
+	ContainerKill(ctx context.Context, containerID string, signal string) error
 	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	ContainerLogs(ctx context.Context, containerID string, opts types.ContainerLogsOptions) (io.ReadCloser, error)
 	ContainerExecCreate(ctx context.Context, containerID string, config types.ExecConfig) (types.IDResponse, error)
@@ -98,6 +101,18 @@ func (r *DockerRepository) ContainerRestart(ctx context.Context, containerID str
 
 func (r *DockerRepository) ContainerRemove(ctx context.Context, containerID string, opts container.RemoveOptions) error {
 	return r.client.ContainerRemove(ctx, containerID, opts)
+}
+
+func (r *DockerRepository) ContainerPause(ctx context.Context, containerID string) error {
+	return r.client.ContainerPause(ctx, containerID)
+}
+
+func (r *DockerRepository) ContainerUnpause(ctx context.Context, containerID string) error {
+	return r.client.ContainerUnpause(ctx, containerID)
+}
+
+func (r *DockerRepository) ContainerKill(ctx context.Context, containerID string, signal string) error {
+	return r.client.ContainerKill(ctx, containerID, signal)
 }
 
 func (r *DockerRepository) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {

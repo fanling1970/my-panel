@@ -81,7 +81,7 @@ export default {
     passwordRequired: '请输入密码',
     usernameRequired: '请输入用户名',
     passwordMismatch: '两次输入的密码不一致',
-    passwordStrength: '密码必须包含至少8个字符，包括大写字母、小写字母、数字和特殊字符',
+    passwordStrength: '密码长度至少6位即可，不强制大小写/数字/特殊字符',
     forceChangePassword: '首次登录请修改密码',
   },
 

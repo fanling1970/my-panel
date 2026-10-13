@@ -28,12 +28,19 @@ type ImageInfo struct {
 type SystemStats struct {
 	CPU         float64 `json:"cpu"`
 	Memory      float64 `json:"memory"`
-	MemoryUsed  uint64  `json:"memory_used"`  // KB
-	MemoryTotal uint64  `json:"memory_total"` // KB
+	MemoryUsed  uint64  `json:"memoryUsed"`  // KB
+	MemoryTotal uint64  `json:"memoryTotal"` // KB
 	Disk        float64 `json:"disk"`
-	DiskUsed    uint64  `json:"disk_used"`    // KB
-	DiskTotal   uint64  `json:"disk_total"`   // KB
+	DiskUsed    uint64  `json:"diskUsed"`    // KB
+	DiskTotal   uint64  `json:"diskTotal"`   // KB
 	Time        string  `json:"time"`
+	// 主机信息
+	CPUCores int    `json:"cpuCores"`
+	Hostname string `json:"hostname"`
+	OS       string `json:"os"`
+	Kernel   string `json:"kernel"`
+	Arch     string `json:"arch"`
+	Uptime   int64  `json:"uptime"` // 秒
 }
 
 // MemoryInfo 内存使用信息

@@ -14,13 +14,8 @@ export const SPECIAL_CHARS = '!@#$%^&*()_+-=[]{}|;:,.<>?'
 
 /**
  * Validate password strength
- * Requirements:
- * - At least 8 characters
- * - At least one uppercase letter
- * - At least one lowercase letter
- * - At least one digit
- * - At least one special character
- * 
+ * 纯自用：只要求最小长度，不强制大写/小写/数字/特殊字符。
+ *
  * @param password Password to validate
  * @returns Validation result with errors and strength indicator
  */
@@ -28,52 +23,20 @@ export function validatePassword(password: string): PasswordValidationResult {
   const errors: string[] = []
   let score = 0
 
-  // Check length
-  if (password.length < 8) {
-    errors.push('密码长度至少8位')
+  // Check length（至少 6 位）
+  if (password.length < 6) {
+    errors.push('密码长度至少6位')
   } else {
     score++
-    if (password.length >= 12) score++
-  }
-
-  // Check for uppercase
-  const hasUpper = /[A-Z]/.test(password)
-  if (!hasUpper) {
-    errors.push('需要包含大写字母')
-  } else {
-    score++
-  }
-
-  // Check for lowercase
-  const hasLower = /[a-z]/.test(password)
-  if (!hasLower) {
-    errors.push('需要包含小写字母')
-  } else {
-    score++
-  }
-
-  // Check for digit
-  const hasDigit = /[0-9]/.test(password)
-  if (!hasDigit) {
-    errors.push('需要包含数字')
-  } else {
-    score++
-  }
-
-  // Check for special character
-  const specialCharsRegex = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/
-  const hasSpecial = specialCharsRegex.test(password)
-  if (!hasSpecial) {
-    errors.push('需要包含特殊字符 (!@#$%^&*()_+-=[]{}|;:,.<>?)')
-  } else {
-    score++
+    if (password.length >= 10) score++
+    if (password.length >= 16) score++
   }
 
   // Determine strength
   let strength: 'weak' | 'medium' | 'strong'
-  if (score <= 2) {
+  if (score <= 1) {
     strength = 'weak'
-  } else if (score <= 4) {
+  } else if (score === 2) {
     strength = 'medium'
   } else {
     strength = 'strong'

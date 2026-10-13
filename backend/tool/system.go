@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -122,4 +123,66 @@ func GetDiskUsage() (DiskInfo, error) {
 	usage, _ := strconv.ParseFloat(usageStr, 64)
 
 	return DiskInfo{Usage: usage, Used: used, Total: total}, nil
+}
+
+// HostInfo 主机信息
+type HostInfo struct {
+	Hostname string
+	OS       string
+	Kernel   string
+	Arch     string
+	CPUCores int
+	Uptime   int64 // 秒
+}
+
+// readFileString 读取文件全部内容（容错，不存在返回空）
+func readFileString(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// GetHostInfo 获取主机信息（Linux 容器内有效，其他平台容错返回空值）
+func GetHostInfo() HostInfo {
+	info := HostInfo{
+		Arch:     runtime.GOARCH,
+		CPUCores: runtime.NumCPU(),
+	}
+
+	if h, err := os.Hostname(); err == nil {
+		info.Hostname = h
+	}
+
+	info.Kernel = readFileString("/proc/sys/kernel/osrelease")
+
+	// 从 /etc/os-release 解析 PRETTY_NAME
+	if f, err := os.Open("/etc/os-release"); err == nil {
+		sc := bufio.NewScanner(f)
+		for sc.Scan() {
+			line := sc.Text()
+			if strings.HasPrefix(line, "PRETTY_NAME=") {
+				v := strings.TrimPrefix(line, "PRETTY_NAME=")
+				info.OS = strings.Trim(v, `"`)
+				break
+			}
+		}
+		f.Close()
+	}
+	if info.OS == "" {
+		info.OS = runtime.GOOS
+	}
+
+	// /proc/uptime 第一个字段是秒
+	if up := readFileString("/proc/uptime"); up != "" {
+		fields := strings.Fields(up)
+		if len(fields) > 0 {
+			if sec, err := strconv.ParseFloat(fields[0], 64); err == nil {
+				info.Uptime = int64(sec)
+			}
+		}
+	}
+
+	return info
 }

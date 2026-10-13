@@ -19,6 +19,17 @@
       </div>
     </div>
 
+    <!-- 批量操作栏 -->
+    <div class="batch-bar">
+      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('start')">{{ t('container.start') || '启动' }}</el-button>
+      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('stop')">{{ t('container.stop') || '停止' }}</el-button>
+      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('restart')">{{ t('container.restart') || '重启' }}</el-button>
+      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('kill')">{{ t('container.kill') || '强制停止' }}</el-button>
+      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('pause')">{{ t('container.pause') || '暂停' }}</el-button>
+      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('unpause')">{{ t('container.unpause') || '恢复' }}</el-button>
+      <el-button size="small" type="danger" :disabled="selectedIds.length === 0" @click="batchAction('remove')">{{ t('common.delete') || '删除' }}</el-button>
+    </div>
+
     <!-- Search and filter bar -->
     <div class="filter-bar">
       <el-input
@@ -53,36 +64,35 @@
       :data="containerStore.paginatedContainers"
       stripe
       style="width: 100%"
-      @sort-change="handleSortChange"
+      @selection-change="handleSelectionChange"
     >
-      <el-table-column
-        prop="id"
-        label="ID"
-        min-width="120"
-        sortable="custom"
-        show-overflow-tooltip
-        class-name="hidden-sm-and-down"
-      />
+      <el-table-column type="selection" width="42" />
       <el-table-column
         prop="name"
         :label="t('common.name')"
-        min-width="120"
-        sortable="custom"
+        min-width="140"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          <span class="container-name">{{ row.name }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="ports"
+        :label="t('container.ports')"
+        min-width="180"
         show-overflow-tooltip
       />
       <el-table-column
         prop="image"
         :label="t('container.image')"
-        min-width="250"
-        sortable="custom"
+        min-width="220"
         show-overflow-tooltip
-        class-name="hidden-xs-only"
       />
       <el-table-column
         prop="state"
         :label="t('common.status')"
-        min-width="80"
-        sortable="custom"
+        width="90"
       >
         <template #default="{ row }">
           <el-tag :type="getStateTagType(row.state)" size="small">
@@ -91,17 +101,8 @@
         </template>
       </el-table-column>
       <el-table-column
-        prop="ports"
-        :label="t('container.ports')"
-        min-width="200"
-        show-overflow-tooltip
-        class-name="hidden-sm-and-down"
-      />
-      <el-table-column
-        prop="cpu"
         label="CPU"
-        min-width="80"
-        class-name="hidden-md-and-down"
+        width="90"
       >
         <template #default="{ row }">
           <template v-if="row.state === 'running'">
@@ -113,10 +114,8 @@
         </template>
       </el-table-column>
       <el-table-column
-        prop="memory"
         :label="t('system.memory')"
-        min-width="120"
-        class-name="hidden-md-and-down"
+        min-width="130"
       >
         <template #default="{ row }">
           <template v-if="row.state === 'running'">
@@ -133,28 +132,20 @@
       </el-table-column>
       <el-table-column
         prop="created"
-        :label="t('common.time')"
-        min-width="170"
-        sortable="custom"
+        :label="t('common.createdAt') || '创建时间'"
+        min-width="160"
         show-overflow-tooltip
-        class-name="hidden-md-and-down"
       />
       <el-table-column
         :label="t('common.actions')"
-        :width="isMobile ? 120 : 380"
+        :width="isMobile ? 160 : 200"
         fixed="right"
         align="center"
       >
         <template #default="{ row }">
-          <ContainerActions
-            :container="row"
-            :compact="isMobile"
-            @action="handleContainerAction"
-            @logs="handleViewLogs"
-            @terminal="handleOpenTerminal"
-            @files="handleOpenFiles"
-            @config="handleOpenConfig"
-          />
+          <el-button link type="primary" size="small" @click="handleOpenTerminal(row.id, row.name)">{{ t('container.terminal') || '终端' }}</el-button>
+          <el-button link type="primary" size="small" @click="handleViewLogs(row.id, row.name)">{{ t('container.logs') || '日志' }}</el-button>
+          <el-button link type="primary" size="small" @click="handleOpenConfig(row.id, row.name)">{{ t('common.edit') || '编辑' }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -220,11 +211,10 @@ import { ref, onMounted, watch, computed, onUnmounted, reactive } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus, Refresh, Search, Monitor } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { useContainerStore, type ContainerState, type SortField } from '@/stores/containers'
+import { useContainerStore, type ContainerState } from '@/stores/containers'
 import { useI18n } from '@/composables/useI18n'
 import { containerApi } from '@/api/containers'
 import type { ContainerStats } from '@/types'
-import ContainerActions from '@/components/container/ContainerActions.vue'
 import CreateContainerDialog from '@/components/container/CreateContainerDialog.vue'
 import DockerRunDialog from '@/components/container/DockerRunDialog.vue'
 import ContainerLogsDialog from '@/components/container/ContainerLogsDialog.vue'
@@ -324,6 +314,28 @@ const showConfigDialog = ref(false)
 const selectedContainerId = ref('')
 const selectedContainerName = ref('')
 
+// 批量操作选中的容器
+const selectedIds = ref<string[]>([])
+
+function handleSelectionChange(rows: { id: string }[]) {
+  selectedIds.value = rows.map((r) => r.id)
+}
+
+async function batchAction(action: 'start' | 'stop' | 'restart' | 'remove' | 'pause' | 'unpause' | 'kill') {
+  if (selectedIds.value.length === 0) return
+  const ids = [...selectedIds.value]
+  for (const id of ids) {
+    try {
+      await containerStore.containerAction(id, action)
+    } catch {
+      // 单个失败继续
+    }
+  }
+  selectedIds.value = []
+  ElMessage.success(t('common.success'))
+  await containerStore.fetchContainers()
+}
+
 // Sync local state with store
 watch(() => containerStore.searchQuery, (val) => { searchInput.value = val })
 watch(() => containerStore.statusFilter, (val) => { statusFilterValue.value = val })
@@ -339,15 +351,6 @@ function handleStatusFilter(value: ContainerState) {
   containerStore.setStatusFilter(value)
 }
 
-function handleSortChange({ prop, order }: { prop: string; order: string | null }) {
-  if (prop && order) {
-    const field = prop as SortField
-    // Map Element Plus sort order to our format
-    containerStore.sortField = field
-    containerStore.sortOrder = order === 'ascending' ? 'asc' : 'desc'
-  }
-}
-
 function handlePageChange(page: number) {
   containerStore.setPage(page)
 }
@@ -360,15 +363,6 @@ async function handleRefresh() {
   await containerStore.fetchContainers()
 }
 
-async function handleContainerAction(id: string, action: 'start' | 'stop' | 'restart' | 'remove') {
-  try {
-    await containerStore.containerAction(id, action)
-    ElMessage.success(t('common.success'))
-  } catch {
-    // Error is handled by request interceptor
-  }
-}
-
 function handleViewLogs(id: string, name: string) {
   selectedContainerId.value = id
   selectedContainerName.value = name
@@ -379,12 +373,6 @@ function handleOpenTerminal(id: string, name: string) {
   selectedContainerId.value = id
   selectedContainerName.value = name
   showTerminalDialog.value = true
-}
-
-function handleOpenFiles(id: string, name: string) {
-  selectedContainerId.value = id
-  selectedContainerName.value = name
-  showFilesDialog.value = true
 }
 
 function handleOpenConfig(id: string, name: string) {
@@ -486,6 +474,21 @@ onMounted(async () => {
   display: flex;
   gap: 15px;
   margin-bottom: 20px;
+}
+
+.batch-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
+}
+
+.container-name {
+  color: var(--el-color-primary);
+  font-weight: 500;
 }
 
 .pagination-wrapper {

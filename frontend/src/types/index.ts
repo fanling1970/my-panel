@@ -175,6 +175,12 @@ export interface SystemStats {
   diskUsed: number    // 已用磁盘 (KB)
   diskTotal: number   // 总磁盘 (KB)
   time: string
+  cpuCores: number
+  hostname: string
+  os: string
+  kernel: string
+  arch: string
+  uptime: number // 秒
 }
 
 // Node Types

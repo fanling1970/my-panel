@@ -36,7 +36,7 @@ export const containerApi = {
    * @param containerId Container ID
    * @param action Action to perform
    */
-  async action(containerId: string, action: 'start' | 'stop' | 'restart' | 'remove'): Promise<void> {
+  async action(containerId: string, action: 'start' | 'stop' | 'restart' | 'remove' | 'pause' | 'unpause' | 'kill'): Promise<void> {
     await request.post('/containers/action', { container_id: containerId, action })
   },
 
