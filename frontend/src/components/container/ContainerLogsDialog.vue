@@ -97,7 +97,7 @@ const dialogVisible = computed({
   set: (val) => emit('update:visible', val),
 })
 
-const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '720px'))
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '50%'))
 
 const logs = ref<string[]>([])
 const searchQuery = ref('')
@@ -108,13 +108,14 @@ const showAllLogs = ref(false)
 
 let eventSource: EventSource | null = null
 
-// Filter logs by search query
+// Filter logs by search query（最多渲染最近 500 行，避免大日志卡死页面）
 const filteredLogs = computed(() => {
-  if (!searchQuery.value) {
-    return logs.value
+  let list = logs.value
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter((log) => log.toLowerCase().includes(q))
   }
-  const query = searchQuery.value.toLowerCase()
-  return logs.value.filter((log) => log.toLowerCase().includes(query))
+  return list.slice(-500)
 })
 
 // Highlight search matches
@@ -203,7 +204,8 @@ function connectLogs() {
 
 async function loadAllLogs() {
   try {
-    logs.value = await containerApi.logsOnce(props.containerId, 'all')
+    const all = await containerApi.logsOnce(props.containerId, 'all')
+    logs.value = Array.isArray(all) ? all.slice(-500) : []
     isConnected.value = true
   } catch {
     isConnected.value = false

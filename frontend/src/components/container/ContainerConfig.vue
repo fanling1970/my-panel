@@ -14,7 +14,6 @@
         <!-- 名称 -->
         <el-form-item label="* 名称">
           <el-input v-model="newName" placeholder="容器名称" />
-          <el-button type="primary" link @click="handleRename">保存名称</el-button>
         </el-form-item>
 
         <!-- 镜像 -->
@@ -65,19 +64,16 @@
             <el-radio value="on-failure">失败后重启</el-radio>
             <el-radio value="unless-stopped">未手动停止则重启</el-radio>
           </el-radio-group>
-          <el-button type="primary" link @click="updateRestart">保存重启规则</el-button>
         </el-form-item>
 
         <!-- CPU 限制 -->
         <el-form-item label="CPU 限制（核，0 为不限制）">
           <el-input-number v-model="resourceForm.cpus" :min="0" :step="0.1" :precision="1" controls-position="right" />
-          <el-button type="primary" link @click="updateCpus">保存</el-button>
         </el-form-item>
 
         <!-- 内存限制 -->
         <el-form-item label="内存限制（MB，0 为不限制）">
           <el-input-number v-model="resourceForm.memory" :min="0" :step="64" controls-position="right" />
-          <el-button type="primary" link @click="updateMemory">保存</el-button>
         </el-form-item>
 
         <!-- 特权 -->
@@ -110,10 +106,8 @@
     </div>
 
     <template #footer>
-      <el-button type="warning" @click="showRecreateDialog = true">
-        重建容器（修改端口/挂载/镜像等）
-      </el-button>
-      <el-button @click="dialogVisible = false">{{ t('common.close') }}</el-button>
+      <el-button @click="dialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="handleConfirm">确认</el-button>
     </template>
 
     <!-- Recreate Container Dialog -->
@@ -128,7 +122,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from '@/composables/useI18n'
 import { containerApi } from '@/api/containers'
 import type { ContainerConfig } from '@/types'
@@ -147,7 +141,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '640px'))
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '50%'))
 
 // Dialog visibility
 const dialogVisible = computed({
@@ -157,6 +151,7 @@ const dialogVisible = computed({
 
 // State
 const loading = ref(false)
+const saving = ref(false)
 const config = ref<ContainerConfig | null>(null)
 const newName = ref('')
 const showRecreateDialog = ref(false)
@@ -187,59 +182,44 @@ async function loadConfig() {
   }
 }
 
-async function handleRename() {
-  if (!newName.value.trim()) {
-    ElMessage.warning(t('config.nameRequired'))
-    return
-  }
-
-  try {
-    await containerApi.rename(props.containerId, newName.value)
-    ElMessage.success(t('config.renameSuccess'))
-    if (config.value) {
-      config.value.name = newName.value
-    }
-    emit('updated')
-  } catch {
-    // Error handled by interceptor
-  }
-}
-
-// Resource updates
-async function updateMemory() {
-  try {
-    await containerApi.update(props.containerId, { memory: resourceForm.memory })
-    ElMessage.success(t('config.updateSuccess'))
-    emit('updated')
-  } catch {
-    // Error handled by interceptor
-  }
-}
-
-async function updateCpus() {
-  try {
-    await containerApi.update(props.containerId, { cpus: resourceForm.cpus })
-    ElMessage.success(t('config.updateSuccess'))
-    emit('updated')
-  } catch {
-    // Error handled by interceptor
-  }
-}
-
-async function updateRestart() {
-  try {
-    await containerApi.update(props.containerId, { restart: resourceForm.restart })
-    ElMessage.success(t('config.updateSuccess'))
-    emit('updated')
-  } catch {
-    // Error handled by interceptor
-  }
-}
-
 // Handle recreated
 function handleRecreated() {
   emit('updated')
   dialogVisible.value = false
+}
+
+// Handle confirm: pop rebuild warning then save changes
+async function handleConfirm() {
+  try {
+    await ElMessageBox.confirm(
+      '编辑容器需要重建，任何未持久化的数据将丢失，是否继续？',
+      '编辑',
+      { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' },
+    )
+  } catch {
+    return // user cancelled
+  }
+
+  saving.value = true
+  try {
+    // 名称变更
+    if (newName.value.trim() && config.value && newName.value.trim() !== config.value.name) {
+      await containerApi.rename(props.containerId, newName.value.trim())
+    }
+    // 资源与重启策略（docker update 在线生效）
+    await containerApi.update(props.containerId, {
+      memory: resourceForm.memory,
+      cpus: resourceForm.cpus,
+      restart: resourceForm.restart,
+    })
+    ElMessage.success('保存成功')
+    emit('updated')
+    dialogVisible.value = false
+  } catch {
+    // 拦截器已提示
+  } finally {
+    saving.value = false
+  }
 }
 
 // Handle dialog open

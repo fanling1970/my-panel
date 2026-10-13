@@ -62,7 +62,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '80%'))
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '50%'))
 
 // Dialog visibility
 const dialogVisible = computed({

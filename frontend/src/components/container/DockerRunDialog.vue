@@ -127,7 +127,7 @@ const dialogVisible = computed({
 const command = ref('')
 const description = ref('')
 const isExecuting = ref(false)
-const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '640px'))
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '50%'))
 const output = ref<Array<{ type: string; message: string }>>([])
 const outputRef = ref<HTMLElement>()
 const activeCollapse = ref<string[]>([])

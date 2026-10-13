@@ -209,7 +209,7 @@ const dialogVisible = computed({
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '640px'))
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '50%'))
 const isStreaming = ref(false)
 const streamLogs = ref<Array<{ type: string; message: string }>>([])
 const logPanelRef = ref<HTMLElement | null>(null)

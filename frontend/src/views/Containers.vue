@@ -9,8 +9,7 @@
           {{ t('container.create') }}
         </el-button>
         <el-button @click="showDockerRunDialog = true">
-          <el-icon><Monitor /></el-icon>
-          {{ t('container.dockerRun') }}
+          通过命令创建
         </el-button>
         <el-button :loading="containerStore.loading" @click="handleRefresh">
           <el-icon><Refresh /></el-icon>
@@ -243,7 +242,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed, onUnmounted, reactive } from 'vue'
 import { useRoute } from 'vue-router'
-import { Plus, Refresh, Search, Monitor } from '@element-plus/icons-vue'
+import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useContainerStore, type ContainerState } from '@/stores/containers'
 import { useI18n } from '@/composables/useI18n'
@@ -509,18 +508,18 @@ onMounted(async () => {
 
 <style scoped>
 .containers-page {
-  padding: 20px;
+  padding: 12px 20px 20px;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
 }
 
-.page-header,
-.batch-bar,
-.filter-bar,
-.pagination-wrapper {
-  flex-shrink: 0;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .containers-page :deep(.el-table) {
@@ -528,11 +527,11 @@ onMounted(async () => {
   min-height: 0;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+.page-header,
+.batch-bar,
+.filter-bar,
+.pagination-wrapper {
+  flex-shrink: 0;
 }
 
 .page-header h2 {
