@@ -3,7 +3,7 @@
     v-model="dialogVisible"
     :title="t('container.create')"
     direction="rtl"
-    size="640px"
+    :size="drawerSize"
     :close-on-click-modal="false"
     :before-close="handleBeforeClose"
     @close="handleClose"
@@ -209,6 +209,7 @@ const dialogVisible = computed({
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '640px'))
 const isStreaming = ref(false)
 const streamLogs = ref<Array<{ type: string; message: string }>>([])
 const logPanelRef = ref<HTMLElement | null>(null)
@@ -403,8 +404,8 @@ async function handleSubmit() {
 
 <style scoped>
 .create-container-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   align-items: stretch;
 }
@@ -416,7 +417,8 @@ async function handleSubmit() {
 .log-panel {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  min-height: 200px;
+  max-height: 260px;
   border: 1px solid var(--el-border-color);
   border-radius: 6px;
   overflow: hidden;
@@ -440,8 +442,7 @@ async function handleSubmit() {
 
 .log-content {
   flex: 1;
-  min-height: 520px;
-  max-height: 520px;
+  min-height: 160px;
   overflow-y: auto;
   padding: 12px;
   background: #111;
@@ -543,15 +544,6 @@ async function handleSubmit() {
 }
 
 @media (max-width: 1200px) {
-  .create-container-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .log-content {
-    min-height: 220px;
-    max-height: 220px;
-  }
-
   .mini-create-task {
     right: 16px;
     left: 16px;

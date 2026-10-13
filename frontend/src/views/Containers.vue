@@ -84,7 +84,14 @@
       >
         <template #default="{ row }">
           <span v-if="row.ports" class="port-tags">
-            <span v-for="(p, i) in row.ports.split(', ')" :key="i" class="port-tag">{{ p }}</span>
+            <a
+              v-for="(p, i) in row.ports.split(', ')"
+              :key="i"
+              class="port-tag"
+              :href="portUrl(p)"
+              target="_blank"
+              rel="noopener"
+            >{{ p }}</a>
           </span>
           <span v-else class="cell-muted">-</span>
         </template>
@@ -275,6 +282,17 @@ function hasCpuStats(containerId: string): boolean {
 function hasMemoryStats(containerId: string): boolean {
   const stats = containerStats[containerId]
   return !!stats && typeof stats.memory_usage === 'number' && Number.isFinite(stats.memory_usage)
+}
+
+// 从 "5244:5244" 取宿主机端口（冒号前）
+function hostPortOf(portMapping: string): string {
+  const idx = portMapping.indexOf(':')
+  return idx > 0 ? portMapping.substring(0, idx) : portMapping
+}
+
+// 生成端口访问链接：当前主机 + 宿主机端口
+function portUrl(portMapping: string): string {
+  return `http://${window.location.hostname}:${hostPortOf(portMapping)}`
 }
 
 // 将 Docker 状态文本转为中文：Up 31 hours → 运行 31 小时
@@ -545,6 +563,10 @@ onMounted(async () => {
   color: var(--el-color-primary);
   background: var(--el-color-primary-light-9);
   border-radius: 4px;
+  text-decoration: none;
+}
+.port-tag:hover {
+  background: var(--el-color-primary-light-7);
 }
 .cell-muted { color: #c0c4cc; }
 .desc-text { color: #606266; }

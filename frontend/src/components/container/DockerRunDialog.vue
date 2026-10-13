@@ -3,7 +3,7 @@
     v-model="dialogVisible"
     :title="t('container.dockerRun')"
     direction="rtl"
-    size="640px"
+    :size="drawerSize"
     :close-on-click-modal="false"
     @close="handleClose"
   >
@@ -127,6 +127,7 @@ const dialogVisible = computed({
 const command = ref('')
 const description = ref('')
 const isExecuting = ref(false)
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '640px'))
 const output = ref<Array<{ type: string; message: string }>>([])
 const outputRef = ref<HTMLElement>()
 const activeCollapse = ref<string[]>([])
@@ -363,10 +364,10 @@ async function handleExecute() {
     return
   }
 
-  // 容器描述作为 label 持久化到容器
+  // 容器描述作为 label 持久化到容器（必须插在 docker run 之后、镜像名之前）
   const desc = description.value.trim().replace(/["\\]/g, '')
   if (desc) {
-    cmd += ` --label my-panel.description="${desc}"`
+    cmd = cmd.replace(/^(docker run\s+)/i, `$1--label my-panel.description="${desc}" `)
   }
 
   isExecuting.value = true
