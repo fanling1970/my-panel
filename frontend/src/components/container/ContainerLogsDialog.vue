@@ -1,8 +1,9 @@
 <template>
-  <el-dialog
+  <el-drawer
     v-model="dialogVisible"
     :title="`${t('container.logs')} - ${containerName}`"
-    width="900px"
+    direction="rtl"
+    :size="drawerSize"
     :close-on-click-modal="false"
     @open="handleOpen"
     @close="handleClose"
@@ -28,10 +29,10 @@
             inactive-text="实时日志"
             @change="handleModeChange"
           />
-          <el-checkbox v-model="autoScroll" :disabled="showAllLogs">Auto-scroll</el-checkbox>
+          <el-checkbox v-model="autoScroll" :disabled="showAllLogs">自动滚动</el-checkbox>
           <el-button size="small" @click="clearLogs">
             <el-icon><Delete /></el-icon>
-            Clear
+            清空
           </el-button>
         </div>
       </div>
@@ -53,24 +54,24 @@
       <div class="logs-status">
         <span v-if="showAllLogs" class="status connected">
           <el-icon><CircleCheck /></el-icon>
-          History Loaded
+          历史日志已加载
         </span>
         <span v-else-if="isConnected" class="status connected">
           <el-icon><CircleCheck /></el-icon>
-          Connected
+          已连接
         </span>
         <span v-else class="status disconnected">
           <el-icon><CircleClose /></el-icon>
-          Disconnected
+          已断开
         </span>
-        <span class="log-count">{{ logs.length }} lines</span>
+        <span class="log-count">{{ logs.length }} 行</span>
       </div>
     </div>
 
     <template #footer>
       <el-button @click="handleClose">{{ t('common.close') }}</el-button>
     </template>
-  </el-dialog>
+  </el-drawer>
 </template>
 
 <script setup lang="ts">
@@ -95,6 +96,8 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: (val) => emit('update:visible', val),
 })
+
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '720px'))
 
 const logs = ref<string[]>([])
 const searchQuery = ref('')

@@ -1,8 +1,9 @@
 <template>
-  <el-dialog
+  <el-drawer
     v-model="dialogVisible"
     :title="t('container.terminal') + ' - ' + containerName"
-    width="80%"
+    direction="rtl"
+    :size="drawerSize"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
     destroy-on-close
@@ -34,7 +35,7 @@
         </div>
       </div>
     </div>
-  </el-dialog>
+  </el-drawer>
 </template>
 
 <script setup lang="ts">
@@ -60,6 +61,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '80%'))
 
 // Dialog visibility
 const dialogVisible = computed({

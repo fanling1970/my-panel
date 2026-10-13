@@ -1,227 +1,117 @@
 <template>
-  <el-dialog
+  <el-drawer
     v-model="dialogVisible"
-    :title="t('container.config') + ' - ' + containerName"
-    width="700px"
+    :title="'编辑 - ' + containerName"
+    direction="rtl"
+    :size="drawerSize"
     :close-on-click-modal="false"
     destroy-on-close
     class="container-config-dialog"
     @open="handleOpen"
   >
     <div v-loading="loading" class="container-config">
-      <el-tabs v-model="activeTab">
-        <!-- Basic Info Tab -->
-        <el-tab-pane :label="t('config.basicInfo')" name="basic">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item :label="t('config.containerId')">
-              {{ config?.id }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.fullId')">
-              <el-tooltip :content="config?.fullId" placement="top">
-                <span class="truncate">{{ config?.fullId }}</span>
-              </el-tooltip>
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('common.name')">
-              <div class="editable-field">
-                <span v-if="!editingName">{{ config?.name }}</span>
-                <el-input v-else v-model="newName" size="small" style="width: 200px" />
-                <el-button
-                  v-if="!editingName"
-                  type="primary"
-                  size="small"
-                  :icon="Edit"
-                  circle
-                  @click="startEditName"
-                />
-                <template v-else>
-                  <el-button type="success" size="small" :icon="Check" circle @click="handleRename" />
-                  <el-button type="info" size="small" :icon="Close" circle @click="cancelEditName" />
-                </template>
-              </div>
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('container.image')">
-              {{ config?.image }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('common.status')">
-              <el-tag :type="config?.running ? 'success' : 'danger'">
-                {{ config?.state }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.platform')">
-              {{ config?.platform }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.created')">
-              {{ formatTime(config?.created) }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.started')">
-              {{ formatTime(config?.started) }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
+      <el-form label-position="top" class="config-form">
+        <!-- 名称 -->
+        <el-form-item label="* 名称">
+          <el-input v-model="newName" placeholder="容器名称" />
+          <el-button type="primary" link @click="handleRename">保存名称</el-button>
+        </el-form-item>
 
-        <!-- Network Tab -->
-        <el-tab-pane :label="t('config.network')" name="network">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item :label="t('config.networkMode')">
-              {{ config?.networkMode }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.hostname')">
-              {{ config?.hostname }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.ipAddress')">
-              {{ config?.ipAddress || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.gateway')">
-              {{ config?.gateway || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.macAddress')">
-              {{ config?.macAddress || '-' }}
-            </el-descriptions-item>
-          </el-descriptions>
-          
-          <h4>{{ t('container.ports') }}</h4>
-          <el-table :data="config?.ports || []" stripe size="small">
-            <el-table-column prop="hostIP" :label="t('config.hostIP')" />
-            <el-table-column prop="host" :label="t('container.hostPort')" />
-            <el-table-column prop="container" :label="t('container.containerPort')" />
+        <!-- 镜像 -->
+        <el-form-item label="* 镜像">
+          <el-input :model-value="config?.image" disabled />
+        </el-form-item>
+
+        <!-- 端口 -->
+        <el-form-item label="端口">
+          <el-table :data="config?.ports || []" size="small" stripe>
+            <el-table-column prop="host" label="服务器" />
+            <el-table-column prop="container" label="容器" />
+            <el-table-column label="协议" width="90">
+              <template #default>tcp</template>
+            </el-table-column>
           </el-table>
-        </el-tab-pane>
+          <div v-if="!config?.ports?.length" class="hint">未映射端口</div>
+        </el-form-item>
 
-        <!-- Storage Tab -->
-        <el-tab-pane :label="t('config.storage')" name="storage">
-          <h4>{{ t('container.volumes') }}</h4>
-          <el-table :data="config?.volumes || []" stripe size="small">
-            <el-table-column prop="host" :label="t('container.hostPath')" />
-            <el-table-column prop="container" :label="t('container.containerPath')" />
-            <el-table-column prop="mode" :label="t('config.mode')" width="100" />
+        <!-- 网络 -->
+        <el-form-item label="网络">
+          <el-input :model-value="config?.networkMode" disabled />
+        </el-form-item>
+
+        <!-- 挂载 -->
+        <el-form-item label="挂载">
+          <el-table :data="config?.volumes || []" size="small" stripe>
+            <el-table-column prop="host" label="本机目录" />
+            <el-table-column prop="container" label="容器目录" />
+            <el-table-column prop="mode" label="权限" width="90" />
           </el-table>
-          
-          <el-descriptions :column="2" border style="margin-top: 20px">
-            <el-descriptions-item :label="t('config.workingDir')">
-              {{ config?.workingDir || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.readOnly')">
-              {{ config?.readOnly ? t('common.yes') : t('common.no') }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
+          <div v-if="!config?.volumes?.length" class="hint">无挂载</div>
+        </el-form-item>
 
-        <!-- Environment Tab -->
-        <el-tab-pane :label="t('container.envVars')" name="env">
-          <el-table :data="config?.env || []" stripe size="small">
-            <el-table-column prop="key" :label="t('container.key')" />
-            <el-table-column prop="value" :label="t('container.value')" />
-          </el-table>
-        </el-tab-pane>
+        <!-- Command / Entrypoint -->
+        <el-form-item label="Command">
+          <el-input :model-value="config?.cmd?.join(' ') || '-'" type="textarea" :rows="2" disabled />
+        </el-form-item>
+        <el-form-item label="Entrypoint">
+          <el-input :model-value="config?.entrypoint?.join(' ') || '-'" disabled />
+        </el-form-item>
 
-        <!-- Resources Tab -->
-        <el-tab-pane :label="t('config.resources')" name="resources">
-          <el-form label-width="150px">
-            <el-form-item :label="t('config.memory')">
-              <div class="resource-field">
-                <el-input-number
-                  v-model="resourceForm.memory"
-                  :min="0"
-                  :step="64"
-                  controls-position="right"
-                />
-                <span class="unit">MB (0 = {{ t('config.unlimited') }})</span>
-                <el-button type="primary" size="small" @click="updateMemory">
-                  {{ t('config.apply') }}
-                </el-button>
-              </div>
-            </el-form-item>
-            <el-form-item :label="t('config.cpus')">
-              <div class="resource-field">
-                <el-input-number
-                  v-model="resourceForm.cpus"
-                  :min="0"
-                  :max="64"
-                  :step="0.1"
-                  :precision="1"
-                  controls-position="right"
-                />
-                <span class="unit">{{ t('config.cores') }} (0 = {{ t('config.unlimited') }})</span>
-                <el-button type="primary" size="small" @click="updateCpus">
-                  {{ t('config.apply') }}
-                </el-button>
-              </div>
-            </el-form-item>
-            <el-form-item :label="t('container.restartPolicy')">
-              <div class="resource-field">
-                <el-select v-model="resourceForm.restart" style="width: 200px">
-                  <el-option value="no" :label="t('container.restartPolicies.no')" />
-                  <el-option value="always" :label="t('container.restartPolicies.always')" />
-                  <el-option value="on-failure" :label="t('container.restartPolicies.onFailure')" />
-                  <el-option value="unless-stopped" :label="t('container.restartPolicies.unlessStopped')" />
-                </el-select>
-                <el-button type="primary" size="small" @click="updateRestart">
-                  {{ t('config.apply') }}
-                </el-button>
-              </div>
-            </el-form-item>
-          </el-form>
-          
-          <el-descriptions :column="2" border style="margin-top: 20px">
-            <el-descriptions-item :label="t('config.cpuShares')">
-              {{ config?.cpuShares }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.pidsLimit')">
-              {{ config?.pidsLimit === 0 ? t('config.unlimited') : config?.pidsLimit }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.oomKillDisable')">
-              {{ config?.oomKillDisable ? t('common.yes') : t('common.no') }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
+        <!-- 重启规则 -->
+        <el-form-item label="重启规则">
+          <el-radio-group v-model="resourceForm.restart">
+            <el-radio value="no">不重启</el-radio>
+            <el-radio value="always">一直重启</el-radio>
+            <el-radio value="on-failure">失败后重启</el-radio>
+            <el-radio value="unless-stopped">未手动停止则重启</el-radio>
+          </el-radio-group>
+          <el-button type="primary" link @click="updateRestart">保存重启规则</el-button>
+        </el-form-item>
 
-        <!-- Security Tab -->
-        <el-tab-pane :label="t('config.security')" name="security">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item :label="t('config.privileged')">
-              <el-tag :type="config?.privileged ? 'danger' : 'success'">
-                {{ config?.privileged ? t('common.yes') : t('common.no') }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.user')">
-              {{ config?.user || 'root' }}
-            </el-descriptions-item>
-          </el-descriptions>
-          
-          <h4>{{ t('config.capAdd') }}</h4>
-          <div class="tag-list">
-            <el-tag v-for="cap in config?.capAdd" :key="cap" type="success" size="small">
-              {{ cap }}
-            </el-tag>
-            <span v-if="!config?.capAdd?.length">-</span>
-          </div>
-          
-          <h4>{{ t('config.capDrop') }}</h4>
-          <div class="tag-list">
-            <el-tag v-for="cap in config?.capDrop" :key="cap" type="danger" size="small">
-              {{ cap }}
-            </el-tag>
-            <span v-if="!config?.capDrop?.length">-</span>
-          </div>
-        </el-tab-pane>
+        <!-- CPU 限制 -->
+        <el-form-item label="CPU 限制（核，0 为不限制）">
+          <el-input-number v-model="resourceForm.cpus" :min="0" :step="0.1" :precision="1" controls-position="right" />
+          <el-button type="primary" link @click="updateCpus">保存</el-button>
+        </el-form-item>
 
-        <!-- Command Tab -->
-        <el-tab-pane :label="t('config.command')" name="command">
-          <el-descriptions :column="1" border>
-            <el-descriptions-item :label="t('config.entrypoint')">
-              <code>{{ config?.entrypoint?.join(' ') || '-' }}</code>
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('config.cmd')">
-              <code>{{ config?.cmd?.join(' ') || '-' }}</code>
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-      </el-tabs>
+        <!-- 内存限制 -->
+        <el-form-item label="内存限制（MB，0 为不限制）">
+          <el-input-number v-model="resourceForm.memory" :min="0" :step="64" controls-position="right" />
+          <el-button type="primary" link @click="updateMemory">保存</el-button>
+        </el-form-item>
+
+        <!-- 特权 -->
+        <el-form-item label="特权模式">
+          <el-tag :type="config?.privileged ? 'danger' : 'success'">
+            {{ config?.privileged ? '已开启' : '未开启' }}
+          </el-tag>
+        </el-form-item>
+
+        <!-- 标签 -->
+        <el-form-item label="标签">
+          <el-input
+            :model-value="Object.entries(config?.labels || {}).map(([k, v]) => `${k}=${v}`).join('\n')"
+            type="textarea"
+            :rows="4"
+            disabled
+          />
+        </el-form-item>
+
+        <!-- 环境变量 -->
+        <el-form-item label="环境变量">
+          <el-input
+            :model-value="(config?.env || []).map(e => `${e.key}=${e.value}`).join('\n')"
+            type="textarea"
+            :rows="4"
+            disabled
+          />
+        </el-form-item>
+      </el-form>
     </div>
-    
+
     <template #footer>
       <el-button type="warning" @click="showRecreateDialog = true">
-        {{ t('config.recreate') }}
+        重建容器（修改端口/挂载/镜像等）
       </el-button>
       <el-button @click="dialogVisible = false">{{ t('common.close') }}</el-button>
     </template>
@@ -233,12 +123,11 @@
       :container-config="config"
       @recreated="handleRecreated"
     />
-  </el-dialog>
+  </el-drawer>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { Edit, Check, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from '@/composables/useI18n'
 import { containerApi } from '@/api/containers'
@@ -258,6 +147,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+const drawerSize = computed(() => (window.innerWidth < 768 ? '100%' : '640px'))
+
 // Dialog visibility
 const dialogVisible = computed({
   get: () => props.visible,
@@ -266,9 +157,7 @@ const dialogVisible = computed({
 
 // State
 const loading = ref(false)
-const activeTab = ref('basic')
 const config = ref<ContainerConfig | null>(null)
-const editingName = ref(false)
 const newName = ref('')
 const showRecreateDialog = ref(false)
 
@@ -282,11 +171,11 @@ const resourceForm = reactive({
 // Load container config
 async function loadConfig() {
   if (!props.containerId) return
-  
+
   loading.value = true
   try {
     config.value = await containerApi.inspect(props.containerId)
-    // Initialize resource form (后端已返回 MB 和核心数)
+    newName.value = config.value?.name || ''
     resourceForm.memory = config.value.memory || 0
     resourceForm.cpus = config.value.cpus || 0
     resourceForm.restart = config.value.restart || 'no'
@@ -298,30 +187,18 @@ async function loadConfig() {
   }
 }
 
-// Name editing
-function startEditName() {
-  newName.value = config.value?.name || ''
-  editingName.value = true
-}
-
-function cancelEditName() {
-  editingName.value = false
-  newName.value = ''
-}
-
 async function handleRename() {
   if (!newName.value.trim()) {
     ElMessage.warning(t('config.nameRequired'))
     return
   }
-  
+
   try {
     await containerApi.rename(props.containerId, newName.value)
     ElMessage.success(t('config.renameSuccess'))
     if (config.value) {
       config.value.name = newName.value
     }
-    editingName.value = false
     emit('updated')
   } catch {
     // Error handled by interceptor
@@ -331,7 +208,6 @@ async function handleRename() {
 // Resource updates
 async function updateMemory() {
   try {
-    // 直接传 MB，后端负责转换为字节
     await containerApi.update(props.containerId, { memory: resourceForm.memory })
     ElMessage.success(t('config.updateSuccess'))
     emit('updated')
@@ -366,16 +242,8 @@ function handleRecreated() {
   dialogVisible.value = false
 }
 
-// Format time
-function formatTime(time?: string): string {
-  if (!time) return '-'
-  return new Date(time).toLocaleString()
-}
-
 // Handle dialog open
 function handleOpen() {
-  activeTab.value = 'basic'
-  editingName.value = false
   loadConfig()
 }
 </script>

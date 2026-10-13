@@ -510,6 +510,22 @@ onMounted(async () => {
 <style scoped>
 .containers-page {
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.page-header,
+.batch-bar,
+.filter-bar,
+.pagination-wrapper {
+  flex-shrink: 0;
+}
+
+.containers-page :deep(.el-table) {
+  flex: 1;
+  min-height: 0;
 }
 
 .page-header {
