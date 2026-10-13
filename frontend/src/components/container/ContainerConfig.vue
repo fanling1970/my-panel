@@ -57,7 +57,7 @@
               </template>
             </el-table-column>
           </el-table>
-          <div style="margin-top: 8px">
+          <div style="margin-top: 8px; width: 100%">
             <el-button size="small" @click="form.ports.push({ host: '', container: '' })">添加</el-button>
           </div>
         </el-form-item>
@@ -99,7 +99,7 @@
               </template>
             </el-table-column>
           </el-table>
-          <div style="margin-top: 8px">
+          <div style="margin-top: 8px; width: 100%">
             <el-button size="small" @click="form.volumes.push({ host: '', container: '', mode: 'rw' })">添加</el-button>
           </div>
         </el-form-item>
@@ -156,7 +156,7 @@
               </template>
             </el-table-column>
           </el-table>
-          <div style="margin-top: 8px">
+          <div style="margin-top: 8px; width: 100%">
             <el-button size="small" @click="form.env.push({ key: '', value: '' })">添加</el-button>
           </div>
         </el-form-item>

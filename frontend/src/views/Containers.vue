@@ -29,42 +29,44 @@
       <el-button size="default" type="danger" :disabled="selectedIds.length === 0" @click="batchAction('remove')">删除</el-button>
     </div>
 
-    <!-- Search and filter bar -->
-    <div class="filter-bar">
-      <el-input
-        v-model="searchInput"
-        :placeholder="t('common.search')"
-        clearable
-        style="width: 300px"
-        @input="handleSearch"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-      </el-input>
+    <!-- 搜索行 + 表格：随表格一起滚动 -->
+    <div class="table-scroll">
+      <!-- Search and filter bar -->
+      <div class="filter-bar">
+        <el-input
+          v-model="searchInput"
+          :placeholder="t('common.search')"
+          clearable
+          style="width: 300px"
+          @input="handleSearch"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
 
-      <el-select
-        v-model="statusFilterValue"
-        :placeholder="t('common.status')"
-        style="width: 150px"
-        @change="handleStatusFilter"
-      >
-        <el-option :label="t('common.all')" value="all" />
-        <el-option :label="t('container.running')" value="running" />
-        <el-option :label="t('container.stopped')" value="exited" />
-        <el-option :label="t('container.paused')" value="paused" />
-        <el-option :label="t('container.created')" value="created" />
-      </el-select>
-    </div>
+        <el-select
+          v-model="statusFilterValue"
+          :placeholder="t('common.status')"
+          style="width: 150px"
+          @change="handleStatusFilter"
+        >
+          <el-option :label="t('common.all')" value="all" />
+          <el-option :label="t('container.running')" value="running" />
+          <el-option :label="t('container.stopped')" value="exited" />
+          <el-option :label="t('container.paused')" value="paused" />
+          <el-option :label="t('container.created')" value="created" />
+        </el-select>
+      </div>
 
-    <!-- Container table -->
-    <el-table
-      v-loading="containerStore.loading"
-      :data="containerStore.paginatedContainers"
-      stripe
-      style="width: 100%"
-      @selection-change="handleSelectionChange"
-    >
+      <!-- Container table -->
+      <el-table
+        v-loading="containerStore.loading"
+        :data="containerStore.paginatedContainers"
+        stripe
+        style="width: 100%"
+        @selection-change="handleSelectionChange"
+      >
       <el-table-column type="selection" width="42" />
       <el-table-column
         prop="name"
@@ -182,6 +184,8 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
+    <!-- /.table-scroll -->
 
     <!-- Pagination -->
     <div class="pagination-wrapper">
@@ -524,13 +528,17 @@ onMounted(async () => {
 }
 
 .containers-page :deep(.el-table) {
+  width: 100%;
+}
+
+.table-scroll {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
 }
 
 .page-header,
 .batch-bar,
-.filter-bar,
 .pagination-wrapper {
   flex-shrink: 0;
 }
@@ -586,6 +594,14 @@ onMounted(async () => {
 }
 .cell-muted { color: #c0c4cc; }
 .desc-text { color: #606266; }
+
+/* 操作列 终端/日志/编辑 用深蓝，和容器名一致 */
+:deep(.el-table .el-button.is-link.is-primary) {
+  color: #1d6fd8 !important;
+}
+:deep(.el-table .el-button.is-link.is-primary:hover) {
+  color: #1559b0 !important;
+}
 
 /* dpanel 风格表头 + 更大更深的字体 */
 :deep(.el-table) {
