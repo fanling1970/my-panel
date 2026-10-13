@@ -1,0 +1,29 @@
+services:
+  my-panel:
+    image: ghcr.io/fanling1970/my-panel:latest
+    container_name: my-panel
+    restart: unless-stopped
+    ports:
+      - "3958:3958"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/my-panel/compose_projects:/app/compose_projects
+      - /root/my-panel/data:/app/data
+    environment:
+      - TZ=Asia/Shanghai
+      - PORT=3958
+      # 首次部署后请改成你自己的随机串（openssl rand -hex 16）
+      - JWT_SECRET=my-panel-change-me-9f3a2b7c1d
+      - NODE_SECRET=my-panel-node-change-me-5e8f1a9b3c
+      - RABBIT_DEPLOY_MODE=docker
+      - RABBIT_IMAGE=ghcr.io/fanling1970/my-panel
+      - RABBIT_IMAGE_TAG=latest
+      - RABBIT_HOST_PROJECT_DIR=/root/my-panel
+      - RABBIT_COMPOSE_FILE=docker-compose.deploy.yml
+      # 禁用上游在线更新检查（纯自用，不去访问作者 manifest）
+      - RABBIT_UPDATE_CHECK_DISABLED=true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3958/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
