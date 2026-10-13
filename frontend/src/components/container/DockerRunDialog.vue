@@ -1,8 +1,9 @@
 <template>
-  <el-dialog
+  <el-drawer
     v-model="dialogVisible"
     :title="t('container.dockerRun')"
-    width="700px"
+    direction="rtl"
+    size="640px"
     :close-on-click-modal="false"
     @close="handleClose"
   >
@@ -87,7 +88,7 @@
         {{ t('container.execute') }}
       </el-button>
     </template>
-  </el-dialog>
+  </el-drawer>
 </template>
 
 <script setup lang="ts">

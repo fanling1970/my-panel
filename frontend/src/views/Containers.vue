@@ -21,13 +21,13 @@
 
     <!-- 批量操作栏 -->
     <div class="batch-bar">
-      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('start')">{{ t('container.start') || '启动' }}</el-button>
-      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('stop')">{{ t('container.stop') || '停止' }}</el-button>
-      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('restart')">{{ t('container.restart') || '重启' }}</el-button>
-      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('kill')">{{ t('container.kill') || '强制停止' }}</el-button>
-      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('pause')">{{ t('container.pause') || '暂停' }}</el-button>
-      <el-button size="small" :disabled="selectedIds.length === 0" @click="batchAction('unpause')">{{ t('container.unpause') || '恢复' }}</el-button>
-      <el-button size="small" type="danger" :disabled="selectedIds.length === 0" @click="batchAction('remove')">{{ t('common.delete') || '删除' }}</el-button>
+      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('start')">启动</el-button>
+      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('stop')">停止</el-button>
+      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('restart')">重启</el-button>
+      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('kill')">强制停止</el-button>
+      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('pause')">暂停</el-button>
+      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('unpause')">恢复</el-button>
+      <el-button size="default" type="danger" :disabled="selectedIds.length === 0" @click="batchAction('remove')">删除</el-button>
     </div>
 
     <!-- Search and filter bar -->
@@ -79,19 +79,25 @@
       </el-table-column>
       <el-table-column
         prop="ports"
-        :label="t('container.ports')"
+        label="端口"
         min-width="180"
-        show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          <span v-if="row.ports" class="port-tags">
+            <span v-for="(p, i) in row.ports.split(', ')" :key="i" class="port-tag">{{ p }}</span>
+          </span>
+          <span v-else class="cell-muted">-</span>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="image"
-        :label="t('container.image')"
-        min-width="220"
+        label="镜像"
+        min-width="200"
         show-overflow-tooltip
       />
       <el-table-column
         prop="state"
-        :label="t('common.status')"
+        label="状态"
         width="90"
       >
         <template #default="{ row }">
@@ -102,7 +108,7 @@
       </el-table-column>
       <el-table-column
         label="CPU"
-        width="90"
+        width="85"
       >
         <template #default="{ row }">
           <template v-if="row.state === 'running'">
@@ -114,8 +120,8 @@
         </template>
       </el-table-column>
       <el-table-column
-        :label="t('system.memory')"
-        min-width="130"
+        label="内存"
+        min-width="120"
       >
         <template #default="{ row }">
           <template v-if="row.state === 'running'">
@@ -131,8 +137,14 @@
         </template>
       </el-table-column>
       <el-table-column
+        prop="status"
+        label="运行时长"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
         prop="created"
-        :label="t('common.createdAt') || '创建时间'"
+        label="创建时间"
         min-width="160"
         show-overflow-tooltip
       />
@@ -489,6 +501,36 @@ onMounted(async () => {
 .container-name {
   color: var(--el-color-primary);
   font-weight: 500;
+}
+
+.port-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.port-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-radius: 4px;
+}
+.cell-muted { color: #c0c4cc; }
+
+/* dpanel 风格表头 + 更大更深的字体 */
+:deep(.el-table) {
+  font-size: 14px;
+  color: #303133;
+}
+:deep(.el-table th.el-table__cell) {
+  background-color: #f5f7fa !important;
+  color: #303133;
+  font-weight: 600;
+  font-size: 14px;
+}
+:deep(.el-table .cell) {
+  line-height: 1.6;
 }
 
 .pagination-wrapper {

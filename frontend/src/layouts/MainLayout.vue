@@ -34,7 +34,6 @@ import { useI18n } from '@/composables/useI18n'
 import SystemMonitor from '@/components/common/SystemMonitor.vue'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
 import SettingsDialog from '@/components/common/SettingsDialog.vue'
-import AgentChatFloat from '@/components/common/AgentChatFloat.vue'
 import UpdateDialog from '@/components/common/UpdateDialog.vue'
 import dockerLogo from '@/assets/docker.svg'
 
@@ -263,7 +262,6 @@ onUnmounted(() => {
   <ChangePasswordDialog v-model="showPasswordDialog" @success="handlePasswordChangeSuccess" />
   <SettingsDialog v-model="showSettingsDialog" />
   <UpdateDialog v-model="showUpdateDialog" />
-  <AgentChatFloat />
 </template>
 
 <style scoped>

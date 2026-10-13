@@ -1,8 +1,9 @@
 <template>
-  <el-dialog
+  <el-drawer
     v-model="dialogVisible"
     :title="t('container.create')"
-    width="1100px"
+    direction="rtl"
+    size="640px"
     :close-on-click-modal="false"
     :before-close="handleBeforeClose"
     @close="handleClose"
@@ -161,7 +162,7 @@
         {{ t('common.confirm') }}
       </el-button>
     </template>
-  </el-dialog>
+  </el-drawer>
 
   <transition name="fade">
     <div v-if="minimized && hasTaskState" class="mini-create-task" @click="restoreDialog">
