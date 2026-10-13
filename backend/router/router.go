@@ -1014,6 +1014,7 @@ func (r *Router) handleContainerRecreate(c *gin.Context) {
 		CPUs:        reqBody.CPUs,
 		Privileged:  reqBody.Privileged,
 		TTY:         reqBody.TTY,
+		PullLatest:   reqBody.PullLatest,
 	}
 	for _, port := range reqBody.Ports {
 		execReq.Ports = append(execReq.Ports, execlib.PortMapping{

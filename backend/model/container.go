@@ -130,6 +130,7 @@ type RecreateContainerRequest struct {
 	CPUs       float64         `json:"cpus"`
 	Privileged bool             `json:"privileged"`
 	TTY        bool             `json:"tty"`
+	PullLatest bool             `json:"pull_latest"`
 }
 
 // CreateContainerRequest 创建容器请求

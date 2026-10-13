@@ -101,6 +101,10 @@ export interface RecreateContainerRequest {
   ports: Array<{ host: string; container: string }>
   env: Array<{ key: string; value: string }>
   volumes: Array<{ host: string; container: string }>
+  memory?: number
+  cpus?: number
+  privileged?: boolean
+  pull_latest?: boolean
 }
 
 

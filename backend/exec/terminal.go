@@ -114,6 +114,14 @@ func (s *TerminalService) RenameContainer(ctx context.Context, containerID, newN
 
 // RecreateContainer 重建容器
 func (s *TerminalService) RecreateContainer(ctx context.Context, req *RecreateRequest) (string, error) {
+	// 强制拉取最新镜像
+	if req.PullLatest {
+		if rc, err := s.dockerRepo.ImagePull(ctx, req.Image, types.ImagePullOptions{}); err == nil {
+			_, _ = io.Copy(io.Discard, rc)
+			_ = rc.Close()
+		}
+	}
+
 	// Stop container
 	_ = s.dockerRepo.ContainerStop(ctx, req.ContainerID, nil)
 
@@ -204,6 +212,7 @@ type RecreateRequest struct {
 	CPUs        float64
 	Privileged  bool
 	TTY         bool
+	PullLatest  bool
 }
 
 // PortMapping 端口映射

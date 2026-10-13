@@ -80,6 +80,20 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   background-color: var(--rp-card-bg);
 }
 
+/* 加深蓝色链接/操作文字 */
+.el-button.is-link.is-primary,
+.el-button.is-text.is-primary {
+  --el-button-text-color: #1d6fd8;
+  --el-button-hover-text-color: #1559b0;
+}
+a,
+.container-name {
+  color: #1d6fd8 !important;
+}
+a:hover {
+  color: #1559b0;
+}
+
 .el-table {
   --el-table-bg-color: var(--rp-card-bg);
   --el-table-tr-bg-color: var(--rp-card-bg);
