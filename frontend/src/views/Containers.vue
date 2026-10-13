@@ -508,6 +508,7 @@ onMounted(async () => {
 
 <style scoped>
 .containers-page {
+  margin: -20px; /* 抵消 main-content 的 20px padding，让本页占满 */
   padding: 12px 20px 20px;
   display: flex;
   flex-direction: column;

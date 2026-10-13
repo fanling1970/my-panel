@@ -83,8 +83,9 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 /* 加深蓝色链接/操作文字 */
 .el-button.is-link.is-primary,
 .el-button.is-text.is-primary {
-  --el-button-text-color: #1d6fd8;
-  --el-button-hover-text-color: #1559b0;
+  --el-button-text-color: #1d6fd8 !important;
+  --el-button-hover-text-color: #1559b0 !important;
+  color: #1d6fd8 !important;
 }
 a,
 .container-name {

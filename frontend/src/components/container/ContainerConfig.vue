@@ -57,7 +57,9 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-button type="primary" link @click="form.ports.push({ host: '', container: '' })">+ 添加端口</el-button>
+          <div style="margin-top: 8px">
+            <el-button size="small" @click="form.ports.push({ host: '', container: '' })">添加</el-button>
+          </div>
         </el-form-item>
 
         <!-- 网络 -->
@@ -97,7 +99,9 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-button type="primary" link @click="form.volumes.push({ host: '', container: '', mode: 'rw' })">+ 添加挂载</el-button>
+          <div style="margin-top: 8px">
+            <el-button size="small" @click="form.volumes.push({ host: '', container: '', mode: 'rw' })">添加</el-button>
+          </div>
         </el-form-item>
 
         <!-- Command / Entrypoint -->
@@ -152,7 +156,9 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-button type="primary" link @click="form.env.push({ key: '', value: '' })">+ 添加环境变量</el-button>
+          <div style="margin-top: 8px">
+            <el-button size="small" @click="form.env.push({ key: '', value: '' })">添加</el-button>
+          </div>
         </el-form-item>
 
         <!-- 标签（只读展示） -->
