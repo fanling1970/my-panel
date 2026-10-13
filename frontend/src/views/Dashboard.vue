@@ -2,6 +2,10 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useSystemStore } from '@/stores/system'
 import { useContainerStore } from '@/stores/containers'
+import { useComposeStore } from '@/stores/compose'
+import { useImageStore } from '@/stores/images'
+import { useNetworkStore } from '@/stores/networks'
+import { useVolumeStore } from '@/stores/volumes'
 import { containerApi } from '@/api/containers'
 import type { ContainerStats } from '@/types'
 import UpdateBanner from '@/components/common/UpdateBanner.vue'
@@ -9,6 +13,10 @@ import UpdateDialog from '@/components/common/UpdateDialog.vue'
 
 const systemStore = useSystemStore()
 const containerStore = useContainerStore()
+const composeStore = useComposeStore()
+const imagesStore = useImageStore()
+const networkStore = useNetworkStore()
+const volumeStore = useVolumeStore()
 
 const showUpdateDialog = ref(false)
 
@@ -49,6 +57,24 @@ const cpuCores = computed(() => systemStore.stats.cpuCores || 0)
 const runningCount = computed(() => containerStore.containers.filter(c => c.state === 'running').length)
 const exitedCount = computed(() => containerStore.containers.filter(c => c.state === 'exited').length)
 const pausedCount = computed(() => containerStore.containers.filter(c => c.state === 'paused').length)
+
+// Compose 项目统计
+const composeTotal = computed(() => composeStore.projects.length)
+const composeRunning = computed(() => composeStore.projects.filter(p => p.status === 'running').length)
+const composeStopped = computed(() => composeStore.projects.filter(p => p.status === 'stopped').length)
+const composePartial = computed(() => composeStore.projects.filter(p => p.status === 'partial').length)
+
+// 镜像统计
+const imageTotal = computed(() => imagesStore.images.length)
+const imageUnused = computed(() => imagesStore.images.filter(i => !i.in_use).length)
+
+// 网络统计
+const networkTotal = computed(() => networkStore.networks.length)
+const networkUnused = computed(() => networkStore.networks.filter(n => !n.in_use).length)
+
+// 存储卷统计
+const volumeTotal = computed(() => volumeStore.volumes.length)
+const volumeUnused = computed(() => volumeStore.volumes.filter(v => !v.in_use).length)
 
 // Docker 容器资源占用合计（所有运行中容器 stats 求和）
 const dockerMemUsage = computed(() => {
@@ -104,7 +130,13 @@ let timer: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   systemStore.fetchStats()
-  await containerStore.fetchContainers()
+  await Promise.all([
+    containerStore.fetchContainers(),
+    composeStore.fetchProjects(),
+    imagesStore.fetchImages(),
+    networkStore.fetchNetworks(),
+    volumeStore.fetchVolumes(),
+  ])
   await fetchAllStats()
   timer = setInterval(() => {
     systemStore.fetchStats()
@@ -185,31 +217,46 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 容器统计卡片 -->
+        <!-- 资源统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card">
-            <div class="stat-label">容器总数</div>
+            <div class="stat-label">容器</div>
             <div class="stat-num">{{ containerStore.containers.length }}</div>
             <div class="stat-sub">
-              <span class="ok">运行中 {{ runningCount }}</span>
-              <span class="stop">已停止 {{ exitedCount }}</span>
-              <span class="pause">已暂停 {{ pausedCount }}</span>
+              <span>运行中 <b class="ok">{{ runningCount }}</b></span>
+              <span>已停止 <b class="stop">{{ exitedCount }}</b></span>
+              <span>已暂停 <b class="pause">{{ pausedCount }}</b></span>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">CPU</div>
-            <div class="stat-num">{{ cpuPercent.toFixed(1) }}%</div>
-            <div class="stat-sub"><span class="muted">{{ cpuCores }} 核</span></div>
+            <div class="stat-label">Compose</div>
+            <div class="stat-num">{{ composeTotal }}</div>
+            <div class="stat-sub">
+              <span>运行中 <b class="ok">{{ composeRunning }}</b></span>
+              <span>已停止 <b class="stop">{{ composeStopped }}</b></span>
+              <span>部分 <b class="pause">{{ composePartial }}</b></span>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">内存</div>
-            <div class="stat-num">{{ memPercent.toFixed(1) }}%</div>
-            <div class="stat-sub"><span class="muted">{{ memUsedText }} / {{ memTotalText }}</span></div>
+            <div class="stat-label">镜像</div>
+            <div class="stat-num">{{ imageTotal }}</div>
+            <div class="stat-sub">
+              <span>未使用 <b class="muted">{{ imageUnused }}</b></span>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">磁盘</div>
-            <div class="stat-num">{{ diskPercent.toFixed(1) }}%</div>
-            <div class="stat-sub"><span class="muted">{{ diskUsedText }} / {{ diskTotalText }}</span></div>
+            <div class="stat-label">网络</div>
+            <div class="stat-num">{{ networkTotal }}</div>
+            <div class="stat-sub">
+              <span>未使用 <b class="muted">{{ networkUnused }}</b></span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">存储卷</div>
+            <div class="stat-num">{{ volumeTotal }}</div>
+            <div class="stat-sub">
+              <span>未使用 <b class="muted">{{ volumeUnused }}</b></span>
+            </div>
           </div>
         </div>
       </div>
@@ -335,13 +382,14 @@ onUnmounted(() => {
 
 .stat-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
   margin-top: 16px;
 }
 .stat-label { font-size: 13px; color: #909399; }
 .stat-num { font-size: 28px; font-weight: 700; margin: 6px 0; }
-.stat-sub { font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+.stat-sub { font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; color: #909399; }
+.stat-sub b { font-weight: 600; }
 .stat-sub .ok { color: #67c23a; }
 .stat-sub .stop { color: #f56c6c; }
 .stat-sub .pause { color: #e6a23c; }

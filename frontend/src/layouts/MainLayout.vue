@@ -31,14 +31,12 @@ import { useComposeStore } from '@/stores/compose'
 import { useRegistryStore } from '@/stores/registry'
 import { useTheme } from '@/composables/useTheme'
 import { useI18n } from '@/composables/useI18n'
-import { useUpdateStore } from '@/stores/update'
 import SystemMonitor from '@/components/common/SystemMonitor.vue'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
 import SettingsDialog from '@/components/common/SettingsDialog.vue'
 import AgentChatFloat from '@/components/common/AgentChatFloat.vue'
 import UpdateDialog from '@/components/common/UpdateDialog.vue'
-import mikuLight from '@/assets/miku-light.svg'
-import mikuDark from '@/assets/miku-dark.svg'
+import dockerLogo from '@/assets/docker.svg'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -48,11 +46,10 @@ const networkStore = useNetworkStore()
 const volumeStore = useVolumeStore()
 const composeStore = useComposeStore()
 const registryStore = useRegistryStore()
-const updateStore = useUpdateStore()
 const { theme, toggleTheme } = useTheme()
-const { language, t, setLanguage } = useI18n()
+const { t } = useI18n()
 
-const logoSrc = computed(() => theme.value === 'dark' ? mikuDark : mikuLight)
+const logoSrc = dockerLogo
 const windowWidth = ref(window.innerWidth)
 const isMobile = computed(() => windowWidth.value < 768)
 const isCollapse = ref(false)
@@ -60,21 +57,9 @@ const drawerVisible = ref(false)
 const showPasswordDialog = ref(false)
 const showSettingsDialog = ref(false)
 const showUpdateDialog = ref(false)
-const isUpdating = computed(() => updateStore.taskStatus?.status === 'running')
-const updateProgressText = computed(() => {
-  if (!isUpdating.value) return ''
-  if (!updateStore.taskStatus?.progress_known) return '...'
-  return `${updateStore.taskStatus?.progress ?? 0}%`
-})
-const showUpdateDot = computed(() => updateStore.shouldShowIndicator && !isUpdating.value)
 
 const themeIcon = computed(() => theme.value === 'dark' ? Sunny : Moon)
 const themeTooltip = computed(() => theme.value === 'dark' ? t('header.lightMode') : t('header.darkMode'))
-
-const languageOptions = [
-  { label: '简体中文', value: 'zh-CN' as const },
-  { label: 'English', value: 'en-US' as const },
-]
 
 const menuItems = computed(() => [
   { index: '/', icon: Monitor, title: t('sideNav.dashboard') },
@@ -118,10 +103,6 @@ async function handleLogout() {
   }
 }
 
-function handleLanguageChange(lang: 'zh-CN' | 'en-US') {
-  setLanguage(lang)
-}
-
 function handleChangePassword() {
   showPasswordDialog.value = true
   if (isMobile.value) {
@@ -141,22 +122,9 @@ function handleOpenSettings() {
   }
 }
 
-function openGitHub() {
-  window.open('https://github.com/fanling1970/my-panel', '_blank')
-}
-
 function toggleDrawer() {
   drawerVisible.value = !drawerVisible.value
 }
-
-const selectedNodeId = computed({
-  get: () => nodesStore.currentNodeId,
-  set: (id: string) => nodesStore.setCurrentNode(id),
-})
-
-const currentNodeName = computed(() => {
-  return nodesStore.nodes.find(node => node.id === nodesStore.currentNodeId)?.name || t('node.master')
-})
 
 watch(() => nodesStore.currentNodeId, (id, prev) => {
   if (id === prev) return
@@ -204,24 +172,6 @@ onUnmounted(() => {
         </el-menu-item>
       </el-menu>
 
-      <div v-if="nodesStore.isMasterMode" class="node-switcher" :class="{ collapsed: isCollapse }">
-        <template v-if="!isCollapse">
-          <div class="node-switcher-label">{{ t('node.switchNode') }}</div>
-          <el-select v-model="selectedNodeId" size="small">
-            <el-option
-              v-for="node in nodesStore.nodes"
-              :key="node.id"
-              :label="node.name"
-              :value="node.id"
-              :disabled="node.status !== 'online'"
-            />
-          </el-select>
-        </template>
-        <el-tooltip v-else :content="currentNodeName" placement="right">
-          <el-icon :size="20" @click="isCollapse = false"><Cpu /></el-icon>
-        </el-tooltip>
-      </div>
-
       <div class="collapse-btn" @click="isCollapse = !isCollapse">
         <el-icon :size="20"><component :is="isCollapse ? Expand : Fold" /></el-icon>
       </div>
@@ -239,19 +189,6 @@ onUnmounted(() => {
           <span>{{ item.title }}</span>
         </el-menu-item>
       </el-menu>
-
-      <div v-if="nodesStore.isMasterMode" class="drawer-node-switcher">
-        <div class="node-switcher-label">{{ t('node.switchNode') }}</div>
-        <el-select v-model="selectedNodeId" size="small">
-          <el-option
-            v-for="node in nodesStore.nodes"
-            :key="node.id"
-            :label="node.name"
-            :value="node.id"
-            :disabled="node.status !== 'online'"
-          />
-        </el-select>
-      </div>
 
       <div class="drawer-footer">
         <div class="drawer-user-info">
@@ -281,56 +218,12 @@ onUnmounted(() => {
         <div class="header-left">
           <el-button v-if="isMobile" :icon="Menu" class="mobile-menu-btn" @click="toggleDrawer" />
           <SystemMonitor />
-          <el-select
-            v-if="nodesStore.isMasterMode"
-            v-model="selectedNodeId"
-            class="header-node-select"
-            size="small"
-          >
-            <el-option
-              v-for="node in nodesStore.nodes"
-              :key="node.id"
-              :label="node.name"
-              :value="node.id"
-              :disabled="node.status !== 'online'"
-            />
-          </el-select>
-          <el-tag size="small" effect="plain" class="version-tag">
-            {{ updateStore.info?.current_version || 'dev' }}
-          </el-tag>
         </div>
 
         <div class="header-right">
-          <el-tooltip content="GitHub" placement="bottom">
-            <el-button circle @click="openGitHub">
-              <svg class="github-icon" viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-              </svg>
-            </el-button>
-          </el-tooltip>
-
-          <el-tooltip :content="t('update.title')" placement="bottom">
-            <el-badge :is-dot="showUpdateDot" :value="updateProgressText" :hidden="!updateProgressText">
-              <el-button :icon="Bell" circle :class="{ 'updating-button': isUpdating }" @click="showUpdateDialog = true" />
-            </el-badge>
-          </el-tooltip>
-
           <el-tooltip :content="themeTooltip" placement="bottom">
             <el-button :icon="themeIcon" circle @click="toggleTheme" />
           </el-tooltip>
-
-          <el-dropdown @command="handleLanguageChange">
-            <el-button circle>
-              <span class="lang-icon">{{ language === 'zh-CN' ? '中' : 'En' }}</span>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item v-for="opt in languageOptions" :key="opt.value" :command="opt.value" :class="{ 'is-active': language === opt.value }">
-                  {{ opt.label }}
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
 
           <el-dropdown v-if="!isMobile">
             <div class="user-info">

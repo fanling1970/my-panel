@@ -41,7 +41,7 @@ export default {
 
   // Sidebar Navigation (侧边栏专用)
   sideNav: {
-    dashboard: '仪表板',
+    dashboard: '概览',
     containers: '容器管理',
     images: '镜像管理',
     networks: '网络管理',
