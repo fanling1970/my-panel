@@ -27,6 +27,11 @@
             <el-input v-model="form.name" placeholder="my-container" />
           </el-form-item>
 
+          <!-- Container Description -->
+          <el-form-item label="容器描述" prop="description">
+            <el-input v-model="form.description" placeholder="这个容器是做什么的，便于识别" />
+          </el-form-item>
+
           <!-- Restart Policy -->
           <el-form-item :label="t('container.restartPolicy')" prop="restart">
             <el-select v-model="form.restart" style="width: 100%">
@@ -229,6 +234,7 @@ interface EnvVar {
 interface FormData {
   image: string
   name: string
+  description: string
   restart: string
   network: string
   ports: PortMapping[]
@@ -239,6 +245,7 @@ interface FormData {
 const initialForm = (): FormData => ({
   image: '',
   name: '',
+  description: '',
   restart: 'no',
   network: 'bridge',
   ports: [],
@@ -368,6 +375,7 @@ async function handleSubmit() {
     await containerApi.createStream({
       image: form.image,
       name: form.name,
+      description: form.description,
       restart: form.restart,
       network: form.network,
       ports,

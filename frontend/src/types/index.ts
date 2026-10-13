@@ -8,6 +8,7 @@ export interface ContainerInfo {
   memory: string
   created: string
   state: 'running' | 'exited' | 'paused' | 'created'
+  description?: string
 }
 
 export interface ContainerConfig {
@@ -83,6 +84,7 @@ export interface ContainerStats {
 export interface CreateContainerRequest {
   image: string
   name: string
+  description?: string
   restart: string
   network: string
   ports: Array<{ host: string; container: string }>

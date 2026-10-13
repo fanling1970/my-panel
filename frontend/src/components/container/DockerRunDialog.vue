@@ -8,13 +8,24 @@
     @close="handleClose"
   >
     <div class="docker-run-dialog">
+      <!-- Description -->
+      <el-form label-position="top">
+        <el-form-item label="容器描述">
+          <el-input
+            v-model="description"
+            placeholder="这个容器是做什么的，便于在列表中识别"
+            :disabled="isExecuting"
+          />
+        </el-form-item>
+      </el-form>
+
       <!-- Command Input -->
       <el-form label-position="top">
-        <el-form-item>
+        <el-form-item label="docker run 命令">
           <el-input
             v-model="command"
             type="textarea"
-            :rows="4"
+            :rows="6"
             :placeholder="t('container.commandPlaceholder')"
             :disabled="isExecuting"
           />
@@ -114,6 +125,7 @@ const dialogVisible = computed({
 })
 
 const command = ref('')
+const description = ref('')
 const isExecuting = ref(false)
 const output = ref<Array<{ type: string; message: string }>>([])
 const outputRef = ref<HTMLElement>()
@@ -321,6 +333,7 @@ function parseCommandArgs(cmd: string): string[] {
 watch(() => props.visible, (val) => {
   if (val) {
     command.value = ''
+    description.value = ''
     output.value = []
     isExecuting.value = false
     activeCollapse.value = []
@@ -342,12 +355,18 @@ function handleClose() {
 }
 
 async function handleExecute() {
-  const cmd = command.value.trim()
+  let cmd = command.value.trim()
   if (!cmd) return
 
   if (!cmd.startsWith('docker run')) {
     ElMessage.error('Only docker run commands are supported')
     return
+  }
+
+  // 容器描述作为 label 持久化到容器
+  const desc = description.value.trim().replace(/["\\]/g, '')
+  if (desc) {
+    cmd += ` --label my-panel.description="${desc}"`
   }
 
   isExecuting.value = true

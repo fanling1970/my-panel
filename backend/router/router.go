@@ -429,11 +429,12 @@ func (r *Router) handleContainerAction(c *gin.Context) {
 
 func (r *Router) handleContainerRun(c *gin.Context) {
 	var reqBody struct {
-		Image   string `json:"image"`
-		Name    string `json:"name"`
-		Restart string `json:"restart"`
-		Network string `json:"network"`
-		Ports   []struct {
+		Image       string `json:"image"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Restart     string `json:"restart"`
+		Network     string `json:"network"`
+		Ports       []struct {
 			Host      string `json:"host"`
 			Container string `json:"container"`
 		} `json:"ports"`
@@ -472,6 +473,9 @@ func (r *Router) handleContainerRun(c *gin.Context) {
 
 	// Build container config
 	containerConfig := &container.Config{Image: reqBody.Image}
+	if reqBody.Description != "" {
+		containerConfig.Labels = map[string]string{"my-panel.description": reqBody.Description}
+	}
 	for _, env := range reqBody.Env {
 		if env.Key != "" {
 			containerConfig.Env = append(containerConfig.Env, fmt.Sprintf("%s=%s", env.Key, env.Value))
@@ -522,11 +526,12 @@ func (r *Router) handleContainerRun(c *gin.Context) {
 
 func (r *Router) handleContainerRunStream(c *gin.Context) {
 	var reqBody struct {
-		Image   string `json:"image"`
-		Name    string `json:"name"`
-		Restart string `json:"restart"`
-		Network string `json:"network"`
-		Ports   []struct {
+		Image       string `json:"image"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Restart     string `json:"restart"`
+		Network     string `json:"network"`
+		Ports       []struct {
 			Host      string `json:"host"`
 			Container string `json:"container"`
 		} `json:"ports"`
@@ -612,6 +617,9 @@ func (r *Router) handleContainerRunStream(c *gin.Context) {
 
 	// Build config
 	containerConfig := &container.Config{Image: reqBody.Image}
+	if reqBody.Description != "" {
+		containerConfig.Labels = map[string]string{"my-panel.description": reqBody.Description}
+	}
 	for _, env := range reqBody.Env {
 		if env.Key != "" {
 			containerConfig.Env = append(containerConfig.Env, fmt.Sprintf("%s=%s", env.Key, env.Value))

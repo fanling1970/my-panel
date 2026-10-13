@@ -96,6 +96,17 @@
         show-overflow-tooltip
       />
       <el-table-column
+        prop="description"
+        label="描述"
+        min-width="120"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          <span v-if="row.description" class="desc-text">{{ row.description }}</span>
+          <span v-else class="cell-muted">-</span>
+        </template>
+      </el-table-column>
+      <el-table-column
         prop="state"
         label="状态"
         width="90"
@@ -141,7 +152,11 @@
         label="运行时长"
         min-width="150"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ formatStatusCN(row.status) }}
+        </template>
+      </el-table-column>
       <el-table-column
         prop="created"
         label="创建时间"
@@ -260,6 +275,21 @@ function hasCpuStats(containerId: string): boolean {
 function hasMemoryStats(containerId: string): boolean {
   const stats = containerStats[containerId]
   return !!stats && typeof stats.memory_usage === 'number' && Number.isFinite(stats.memory_usage)
+}
+
+// 将 Docker 状态文本转为中文：Up 31 hours → 运行 31 小时
+function formatStatusCN(status: string): string {
+  if (!status) return '-'
+  let s = status
+  // Exited (143) 7 hours ago → 已停止 7 小时前（退出码 143）
+  s = s.replace(/^Exited\s*\((\d+)\)\s*(.+?)\s*ago$/i, '已停止 $2 前（退出码 $1）')
+  s = s.replace(/^Up\s+/i, '运行 ')
+  s = s.replace(/(\d+)\s*days?/gi, '$1 天')
+  s = s.replace(/(\d+)\s*hours?/gi, '$1 小时')
+  s = s.replace(/(\d+)\s*minutes?/gi, '$1 分钟')
+  s = s.replace(/(\d+)\s*seconds?/gi, '$1 秒')
+  s = s.replace(/\(healthy\)/gi, '（健康）')
+  return s
 }
 
 // 获取容器 stats
@@ -517,6 +547,7 @@ onMounted(async () => {
   border-radius: 4px;
 }
 .cell-muted { color: #c0c4cc; }
+.desc-text { color: #606266; }
 
 /* dpanel 风格表头 + 更大更深的字体 */
 :deep(.el-table) {
@@ -530,7 +561,9 @@ onMounted(async () => {
   font-size: 14px;
 }
 :deep(.el-table .cell) {
-  line-height: 1.6;
+  line-height: 1.7;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .pagination-wrapper {

@@ -2,14 +2,15 @@ package model
 
 // ContainerInfo 容器列表项（API 响应用）
 type ContainerInfo struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Image   string `json:"image"`
-	Status  string `json:"status"`
-	Ports   string `json:"ports"`
-	Memory  string `json:"memory"`
-	Created string `json:"created"`
-	State   string `json:"state"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Image       string `json:"image"`
+	Status      string `json:"status"`
+	Ports       string `json:"ports"`
+	Memory      string `json:"memory"`
+	Created     string `json:"created"`
+	State       string `json:"state"`
+	Description string `json:"description"`
 }
 
 // ImageInfo 镜像列表项
@@ -133,17 +134,18 @@ type RecreateContainerRequest struct {
 
 // CreateContainerRequest 创建容器请求
 type CreateContainerRequest struct {
-	Image     string          `json:"image"`
-	Name      string          `json:"name"`
-	Ports     []PortMapping   `json:"ports"`
-	Volumes   []VolumeMapping `json:"volumes"`
-	Env       []EnvVar        `json:"env"`
-	Restart   string          `json:"restart"`
-	Network   string          `json:"network"`
-	Memory    int64           `json:"memory"`
-	CPUs      float64         `json:"cpus"`
-	Privileged bool            `json:"privileged"`
-	TTY       bool             `json:"tty"`
+	Image       string          `json:"image"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Ports       []PortMapping   `json:"ports"`
+	Volumes     []VolumeMapping `json:"volumes"`
+	Env         []EnvVar        `json:"env"`
+	Restart     string          `json:"restart"`
+	Network     string          `json:"network"`
+	Memory      int64           `json:"memory"`
+	CPUs        float64         `json:"cpus"`
+	Privileged  bool            `json:"privileged"`
+	TTY         bool            `json:"tty"`
 }
 
 // ContainerActionRequest 容器操作请求

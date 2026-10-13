@@ -181,14 +181,22 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 			ports = strings.Join(portMappings, ", ")
 		}
 
+		description := ""
+		if c.Labels != nil {
+			if d, ok := c.Labels["my-panel.description"]; ok {
+				description = d
+			}
+		}
+
 		result = append(result, model.ContainerInfo{
-			ID:      c.ID[:12],
-			Name:    name,
-			Image:   c.Image,
-			Status:  c.Status,
-			Ports:   ports,
-			Created: time.Unix(c.Created, 0).Format("2006-01-02 15:04:05"),
-			State:   c.State,
+			ID:          c.ID[:12],
+			Name:        name,
+			Image:       c.Image,
+			Status:      c.Status,
+			Ports:       ports,
+			Created:     time.Unix(c.Created, 0).Format("2006-01-02 15:04:05"),
+			State:       c.State,
+			Description: description,
 		})
 	}
 	return result
