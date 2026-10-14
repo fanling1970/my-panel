@@ -241,6 +241,14 @@
       :container-name="selectedContainerName"
       @updated="handleContainerCreated"
     />
+
+    <!-- 容器更新进度弹窗 -->
+    <el-dialog v-model="upgradeDialogVisible" title="容器更新" width="520px" :close-on-click-modal="false" :close-on-press-escape="false">
+      <el-alert v-if="upgradeError" :title="upgradeError" type="error" :closable="false" style="margin-bottom: 12px" />
+      <div style="background: #f5f7fa; border-radius: 6px; padding: 14px; font-size: 13px; color: #606262; word-break: break-all;">
+        {{ upgradeMessage }}
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -373,6 +381,9 @@ const showLogsDialog = ref(false)
 const showTerminalDialog = ref(false)
 const showFilesDialog = ref(false)
 const showConfigDialog = ref(false)
+const upgradeDialogVisible = ref(false)
+const upgradeMessage = ref('')
+const upgradeError = ref('')
 
 // Selected container for logs
 const selectedContainerId = ref('')
@@ -455,16 +466,39 @@ async function handleUpgrade(row: any) {
   } catch {
     return
   }
-  const loading = ElMessage({ message: '正在拉取镜像并重建容器...', type: 'info', duration: 0 })
-  try {
-    await containerApi.upgrade(row.id)
-    loading.close()
-    ElMessage.success('更新完成')
-    delete containerStore.updateMap[row.id]
-    containerStore.fetchContainers()
-  } catch (e: any) {
-    loading.close()
-    ElMessage.error('更新失败：' + (e?.message || ''))
+  upgradeDialogVisible.value = true
+  upgradeMessage.value = '开始...'
+  upgradeError.value = ''
+  const res = await fetch('/api/containers/upgrade', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ container_id: row.id }),
+  })
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    const lines = buf.split('\n\n')
+    buf = lines.pop() || ''
+    for (const block of lines) {
+      const line = block.replace(/^data: /, '').trim()
+      if (!line) continue
+      try {
+        const data = JSON.parse(line)
+        if (data.type === 'progress' || data.type === 'info') {
+          upgradeMessage.value = data.message
+        } else if (data.type === 'error') {
+          upgradeError.value = data.message
+        } else if (data.type === 'success') {
+          upgradeMessage.value = '更新完成'
+          delete containerStore.updateMap[row.id]
+          containerStore.fetchContainers()
+        }
+      } catch { /* ignore */ }
+    }
   }
 }
 

@@ -1139,7 +1139,7 @@ func shortID(id string) string {
 	return id
 }
 
-// handleContainerUpgrade 拉取最新镜像并重建容器
+// handleContainerUpgrade SSE：拉取最新镜像并重建容器
 func (r *Router) handleContainerUpgrade(c *gin.Context) {
 	var body struct {
 		ContainerID string `json:"container_id"`
@@ -1148,19 +1148,55 @@ func (r *Router) handleContainerUpgrade(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "container_id required"})
 		return
 	}
-	// 先 inspect 原容器拿镜像名
-	inspect, err := r.app.DockerRepo.ContainerInspect(c.Request.Context(), body.ContainerID)
+
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	send := func(payload string) {
+		fmt.Fprintf(c.Writer, "data: %s\n\n", payload)
+		flusher.Flush()
+	}
+
+	ctx := c.Request.Context()
+	inspect, err := r.app.DockerRepo.ContainerInspect(ctx, body.ContainerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		send(fmt.Sprintf(`{"type":"error","message":"%s"}`, strings.ReplaceAll(err.Error(), `"`, `\"`)))
 		return
 	}
 	imageRef := inspect.Config.Image
-	// pull 最新镜像
-	if rc, err := r.app.DockerRepo.ImagePull(c.Request.Context(), imageRef, types.ImagePullOptions{}); err == nil {
-		io.Copy(io.Discard, rc)
-		rc.Close()
+	send(fmt.Sprintf(`{"type":"info","message":"正在拉取镜像 %s ..."}`, strings.ReplaceAll(imageRef, `"`, `\"`)))
+
+	rc, err := r.app.DockerRepo.ImagePull(ctx, imageRef, r.app.RegistryService.PullOptions(imageRef))
+	if err != nil {
+		send(fmt.Sprintf(`{"type":"error","message":"拉取镜像失败: %s"}`, strings.ReplaceAll(err.Error(), `"`, `\"`)))
+		return
 	}
-	// 用原配置重建（复用 RecreateContainer，只改镜像）
+	decoder := json.NewDecoder(rc)
+	for {
+		var st struct {
+			Status   string `json:"status"`
+			Progress string `json:"progress"`
+		}
+		if err := decoder.Decode(&st); err != nil {
+			break
+		}
+		if st.Progress != "" || st.Status != "" {
+			msg := st.Status
+			if st.Progress != "" {
+				msg = st.Status + " " + st.Progress
+			}
+			send(fmt.Sprintf(`{"type":"progress","message":%q}`, msg))
+		}
+	}
+	rc.Close()
+
+	send(`{"type":"info","message":"正在重建容器..."}`)
 	execReq := &execlib.RecreateRequest{
 		ContainerID: body.ContainerID,
 		Name:        strings.TrimPrefix(inspect.Name, "/"),
@@ -1171,7 +1207,6 @@ func (r *Router) handleContainerUpgrade(c *gin.Context) {
 		TTY:         inspect.Config.Tty,
 		PullLatest:  true,
 	}
-	// 端口
 	for pn, binding := range inspect.HostConfig.PortBindings {
 		for _, b := range binding {
 			portNum := strings.SplitN(string(pn), "/", 2)[0]
@@ -1181,7 +1216,6 @@ func (r *Router) handleContainerUpgrade(c *gin.Context) {
 			})
 		}
 	}
-	// 挂载
 	for _, b := range inspect.HostConfig.Binds {
 		parts := strings.SplitN(b, ":", 3)
 		if len(parts) >= 2 {
@@ -1191,19 +1225,18 @@ func (r *Router) handleContainerUpgrade(c *gin.Context) {
 			})
 		}
 	}
-	// 环境变量
 	for _, env := range inspect.Config.Env {
 		kv := strings.SplitN(env, "=", 2)
 		if len(kv) == 2 {
 			execReq.Env = append(execReq.Env, execlib.EnvVar{Key: kv[0], Value: kv[1]})
 		}
 	}
-	newID, err := r.app.TerminalService.RecreateContainer(c.Request.Context(), execReq)
+	newID, err := r.app.TerminalService.RecreateContainer(ctx, execReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		send(fmt.Sprintf(`{"type":"error","message":"重建容器失败: %s"}`, strings.ReplaceAll(err.Error(), `"`, `\"`)))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "success", "container_id": newID})
+	send(fmt.Sprintf(`{"type":"success","container_id":%q}`, newID))
 }
 
 func (r *Router) handleContainerStats(c *gin.Context) {
