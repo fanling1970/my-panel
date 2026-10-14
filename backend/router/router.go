@@ -1085,12 +1085,14 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 			checked, total, name, imageRef))
 
 		hasUpdate := false
+		errMsg := ""
 		// 同一镜像只查一次远端
 		if !seenImages[imageRef] {
 			seenImages[imageRef] = true
 			localInspect, _, err := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
 			if err == nil && len(localInspect.RepoDigests) > 0 {
-				remote, derr := r.app.DockerRepo.DistributionInspect(ctx, imageRef, "")
+				pullOpts := r.app.RegistryService.PullOptions(imageRef)
+				remote, derr := r.app.DockerRepo.DistributionInspect(ctx, imageRef, pullOpts.RegistryAuth)
 				if derr == nil {
 					remoteDigest := remote.Descriptor.Digest.String()
 					found := false
@@ -1101,15 +1103,21 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 						}
 					}
 					hasUpdate = !found
+				} else {
+					errMsg = derr.Error()
 				}
+			} else if err != nil {
+				errMsg = "本地镜像检查失败"
+			} else {
+				errMsg = "无RepoDigests(本地构建镜像)"
 			}
 		}
 
 		if hasUpdate {
 			updateCount++
 		}
-		send(fmt.Sprintf(`{"type":"result","container_id":%q,"name":%q,"image":%q,"has_update":%t}`,
-			ct.ID, name, imageRef, hasUpdate))
+		send(fmt.Sprintf(`{"type":"result","container_id":%q,"name":%q,"image":%q,"has_update":%t,"error":%q}`,
+			ct.ID, name, imageRef, hasUpdate, errMsg))
 	}
 
 	send(fmt.Sprintf(`{"type":"done","update_count":%d,"total":%d}`, updateCount, total))
