@@ -1086,32 +1086,35 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 
 		hasUpdate := false
 		errMsg := ""
-		// 同一镜像只检测一次：pull前后对比镜像ID
+		// 同一镜像只查一次远端：DistributionInspect 对比 digest，不真拉镜像(避免产生dangle)
 		if !seenImages[imageRef] {
 			seenImages[imageRef] = true
 			localBefore, _, err := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
 			if err == nil {
-				beforeID := localBefore.ID
-				// c.Image 可能是 sha256:xxx（镜像ID），从 RepoTags 拿真实镜像名
 				pullRef := imageRef
 				if len(localBefore.RepoTags) > 0 {
 					pullRef = localBefore.RepoTags[0]
 				} else if strings.HasPrefix(imageRef, "sha256:") {
 					errMsg = "无tag镜像,跳过"
 				}
-				if errMsg == "" {
+				if errMsg == "" && len(localBefore.RepoDigests) > 0 {
 					pullOpts := r.app.RegistryService.PullOptions(pullRef)
-					reader, perr := r.app.DockerRepo.ImagePull(ctx, pullRef, pullOpts)
-					if perr == nil {
-						io.Copy(io.Discard, reader)
-						reader.Close()
-						localAfter, _, aerr := r.app.DockerRepo.ImageInspectWithRaw(ctx, pullRef)
-						if aerr == nil {
-							hasUpdate = (beforeID != localAfter.ID)
+					remote, derr := r.app.DockerRepo.DistributionInspect(ctx, pullRef, pullOpts.RegistryAuth)
+					if derr == nil {
+						remoteDigest := remote.Descriptor.Digest.String()
+						found := false
+						for _, d := range localBefore.RepoDigests {
+							if strings.Contains(d, remoteDigest) {
+								found = true
+								break
+							}
 						}
+						hasUpdate = !found
 					} else {
-						errMsg = perr.Error()
+						errMsg = derr.Error()
 					}
+				} else if errMsg == "" {
+					errMsg = "无RepoDigests(本地构建镜像)"
 				}
 			} else {
 				errMsg = "本地镜像检查失败"
