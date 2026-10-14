@@ -1073,6 +1073,7 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 
 	updateCount := 0
 	checked := 0
+	seenImages := map[string]bool{}
 	for _, ct := range containers {
 		name := ""
 		if len(ct.Names) > 0 {
@@ -1084,25 +1085,24 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 			checked, total, name, imageRef))
 
 		hasUpdate := false
-		reader, err := r.app.DockerRepo.ImagePull(ctx, imageRef, r.app.RegistryService.PullOptions(imageRef))
-		if err == nil {
-			decoder := json.NewDecoder(reader)
-			for {
-				var status struct {
-					Status string `json:"status"`
-				}
-				if err := decoder.Decode(&status); err != nil {
-					break
-				}
-				s := status.Status
-				if strings.Contains(s, "Downloaded newer image") || strings.Contains(s, "Pulling fs layer") && checked == 0 {
-					hasUpdate = true
-				}
-				if strings.Contains(s, "Downloaded newer image") {
-					hasUpdate = true
+		// 同一镜像只查一次远端
+		if !seenImages[imageRef] {
+			seenImages[imageRef] = true
+			localInspect, _, err := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
+			if err == nil && len(localInspect.RepoDigests) > 0 {
+				remote, derr := r.app.DockerRepo.DistributionInspect(ctx, imageRef, "")
+				if derr == nil {
+					remoteDigest := remote.Descriptor.Digest.String()
+					found := false
+					for _, d := range localInspect.RepoDigests {
+						if strings.Contains(d, remoteDigest) {
+							found = true
+							break
+						}
+					}
+					hasUpdate = !found
 				}
 			}
-			reader.Close()
 		}
 
 		if hasUpdate {
