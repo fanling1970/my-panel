@@ -1044,14 +1044,75 @@ func (r *Router) handleContainerRecreate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success", "container_id": newContainerID})
 }
 
-// handleContainerCheckUpdates 检测所有容器镜像是否有更新
+// handleContainerCheckUpdates SSE：逐个容器 pull 镜像判断是否有更新
 func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
-	result, err := r.app.ContainerService.CheckUpdates(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		c.Status(http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+
+	send := func(payload string) {
+		fmt.Fprintf(c.Writer, "data: %s\n\n", payload)
+		flusher.Flush()
+	}
+
+	ctx := context.Background()
+	containers, err := r.app.DockerRepo.ContainerList(ctx, types.ContainerListOptions{All: true})
+	if err != nil {
+		send(`{"type":"error","message":"` + err.Error() + `"}`)
+		return
+	}
+
+	total := len(containers)
+	send(fmt.Sprintf(`{"type":"start","total":%d}`, total))
+
+	updateCount := 0
+	checked := 0
+	for _, ct := range containers {
+		name := ""
+		if len(ct.Names) > 0 {
+			name = strings.TrimPrefix(ct.Names[0], "/")
+		}
+		imageRef := ct.Image
+		checked++
+		send(fmt.Sprintf(`{"type":"progress","current":%d,"total":%d,"container_name":%q,"image":%q}`,
+			checked, total, name, imageRef))
+
+		hasUpdate := false
+		reader, err := r.app.DockerRepo.ImagePull(ctx, imageRef, r.app.RegistryService.PullOptions(imageRef))
+		if err == nil {
+			decoder := json.NewDecoder(reader)
+			for {
+				var status struct {
+					Status string `json:"status"`
+				}
+				if err := decoder.Decode(&status); err != nil {
+					break
+				}
+				s := status.Status
+				if strings.Contains(s, "Downloaded newer image") || strings.Contains(s, "Pulling fs layer") && checked == 0 {
+					hasUpdate = true
+				}
+				if strings.Contains(s, "Downloaded newer image") {
+					hasUpdate = true
+				}
+			}
+			reader.Close()
+		}
+
+		if hasUpdate {
+			updateCount++
+		}
+		send(fmt.Sprintf(`{"type":"result","container_id":%q,"name":%q,"image":%q,"has_update":%t}`,
+			ct.ID, name, imageRef, hasUpdate))
+	}
+
+	send(fmt.Sprintf(`{"type":"done","update_count":%d,"total":%d}`, updateCount, total))
 }
 
 // handleContainerUpgrade 拉取最新镜像并重建容器

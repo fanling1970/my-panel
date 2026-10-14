@@ -23,6 +23,11 @@ const showUpdateDialog = ref(false)
 
 // 容器更新检测
 const checking = ref(false)
+const checkDialogVisible = ref(false)
+const checkTotal = ref(0)
+const checkCurrent = ref(0)
+const checkContainerName = ref('')
+const checkImageName = ref('')
 const updateResults = ref<Array<{ container_id: string; name: string; image: string; has_update: boolean }>>([])
 const updateAvailableCount = computed(() => updateResults.value.filter(r => r.has_update).length)
 const pendingCheckCount = computed(() => updateResults.value.length === 0 ? containerStore.containers.length : 0)
@@ -38,19 +43,41 @@ async function handleCheckUpdates() {
     return
   }
   checking.value = true
-  try {
-    const results = await containerApi.checkUpdates()
-    updateResults.value = results
-    const n = results.filter((r: any) => r.has_update).length
-    if (n > 0) {
-      ElMessage.warning(`检测完成：${n} 个容器有可用更新`)
-    } else {
-      ElMessage.success('检测完成：所有容器镜像均为最新')
-    }
-  } catch (e: any) {
-    ElMessage.error('检测失败：' + (e?.message || ''))
-  } finally {
+  updateResults.value = []
+  checkCurrent.value = 0
+  checkTotal.value = 0
+  checkContainerName.value = ''
+  checkImageName.value = ''
+  checkDialogVisible.value = true
+
+  const { getToken } = await import('@/utils/request')
+  const token = getToken()
+  const es = new EventSource(`/api/containers/check-updates?token=${encodeURIComponent(token || '')}`)
+  es.onmessage = (ev) => {
+    try {
+      const data = JSON.parse(ev.data)
+      if (data.type === 'start') {
+        checkTotal.value = data.total
+      } else if (data.type === 'progress') {
+        checkCurrent.value = data.current
+        checkContainerName.value = data.container_name
+        checkImageName.value = data.image
+      } else if (data.type === 'result') {
+        updateResults.value.push(data)
+      } else if (data.type === 'done') {
+        checking.value = false
+        es.close()
+        ElMessage.warning(`检测完成：${data.update_count} 个容器有可用更新`)
+      } else if (data.type === 'error') {
+        checking.value = false
+        es.close()
+        ElMessage.error('检测失败：' + data.message)
+      }
+    } catch { /* ignore */ }
+  }
+  es.onerror = () => {
     checking.value = false
+    es.close()
   }
 }
 
@@ -187,6 +214,19 @@ onUnmounted(() => {
   <div class="dashboard-page">
     <UpdateBanner @click="showUpdateDialog = true" />
     <UpdateDialog v-model="showUpdateDialog" />
+
+    <!-- 检测更新进度弹窗 -->
+    <el-dialog v-model="checkDialogVisible" title="检测更新" width="560px" :close-on-click-modal="false" :close-on-press-escape="false">
+      <div style="margin-bottom: 8px; color: #606262;">
+        当前检测 <b>{{ checkCurrent }}</b> / {{ checkTotal }}
+      </div>
+      <div style="background: #f5f7fa; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+        <div style="margin-bottom: 6px;">容器名称：<b>{{ checkContainerName || '-' }}</b></div>
+        <div>镜像名称：<span style="color:#606262">{{ checkImageName || '-' }}</span></div>
+      </div>
+      <div style="margin-bottom: 6px;">检测更新 <b>{{ checkTotal ? Math.round(checkCurrent / checkTotal * 100) : 0 }}%</b></div>
+      <el-progress :percentage="checkTotal ? Math.round(checkCurrent / checkTotal * 100) : 0" />
+    </el-dialog>
 
     <div class="dash-grid">
       <!-- 左侧主区 -->
