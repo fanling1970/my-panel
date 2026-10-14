@@ -1086,30 +1086,26 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 
 		hasUpdate := false
 		errMsg := ""
-		// 同一镜像只查一次远端
+		// 同一镜像只检测一次：pull前后对比镜像ID
 		if !seenImages[imageRef] {
 			seenImages[imageRef] = true
-			localInspect, _, err := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
-			if err == nil && len(localInspect.RepoDigests) > 0 {
+			localBefore, _, err := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
+			if err == nil {
+				beforeID := localBefore.ID
 				pullOpts := r.app.RegistryService.PullOptions(imageRef)
-				remote, derr := r.app.DockerRepo.DistributionInspect(ctx, imageRef, pullOpts.RegistryAuth)
-				if derr == nil {
-					remoteDigest := remote.Descriptor.Digest.String()
-					found := false
-					for _, d := range localInspect.RepoDigests {
-						if strings.Contains(d, remoteDigest) {
-							found = true
-							break
-						}
+				reader, perr := r.app.DockerRepo.ImagePull(ctx, imageRef, pullOpts)
+				if perr == nil {
+					io.Copy(io.Discard, reader)
+					reader.Close()
+					localAfter, _, aerr := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
+					if aerr == nil {
+						hasUpdate = (beforeID != localAfter.ID)
 					}
-					hasUpdate = !found
 				} else {
-					errMsg = derr.Error()
+					errMsg = perr.Error()
 				}
-			} else if err != nil {
-				errMsg = "本地镜像检查失败"
 			} else {
-				errMsg = "无RepoDigests(本地构建镜像)"
+				errMsg = "本地镜像检查失败"
 			}
 		}
 
