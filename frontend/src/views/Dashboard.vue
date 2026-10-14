@@ -22,15 +22,14 @@ const volumeStore = useVolumeStore()
 const showUpdateDialog = ref(false)
 
 // 容器更新检测
-const checking = ref(false)
+const checking = computed(() => containerStore.updateChecking)
 const checkDialogVisible = ref(false)
 const checkTotal = ref(0)
 const checkCurrent = ref(0)
 const checkContainerName = ref('')
 const checkImageName = ref('')
-const updateResults = ref<Array<{ container_id: string; name: string; image: string; has_update: boolean }>>([])
-const updateAvailableCount = computed(() => updateResults.value.filter(r => r.has_update).length)
-const pendingCheckCount = computed(() => updateResults.value.length === 0 ? containerStore.containers.length : 0)
+const updateAvailableCount = computed(() => containerStore.updateResults.filter(r => r.has_update).length)
+const pendingCheckCount = computed(() => containerStore.updateResults.length === 0 ? containerStore.containers.length : 0)
 
 async function handleCheckUpdates() {
   try {
@@ -42,8 +41,8 @@ async function handleCheckUpdates() {
   } catch {
     return
   }
-  checking.value = true
-  updateResults.value = []
+  containerStore.updateChecking = true
+  containerStore.updateResults = []
   checkCurrent.value = 0
   checkTotal.value = 0
   checkContainerName.value = ''
@@ -63,21 +62,21 @@ async function handleCheckUpdates() {
         checkContainerName.value = data.container_name
         checkImageName.value = data.image
       } else if (data.type === 'result') {
-        updateResults.value.push(data)
+        containerStore.updateResults.push(data)
         containerStore.updateMap[data.container_id] = data.has_update
       } else if (data.type === 'done') {
-        checking.value = false
+        containerStore.updateChecking = false
         es.close()
         ElMessage.warning(`检测完成：${data.update_count} 个容器有可用更新`)
       } else if (data.type === 'error') {
-        checking.value = false
+        containerStore.updateChecking = false
         es.close()
         ElMessage.error('检测失败：' + data.message)
       }
     } catch { /* ignore */ }
   }
   es.onerror = () => {
-    checking.value = false
+    containerStore.updateChecking = false
     es.close()
   }
 }
