@@ -94,6 +94,8 @@ func (r *Router) Register() {
 		apiAuth.POST("/containers/update", r.handleContainerUpdate)
 		apiAuth.POST("/containers/rename", r.handleContainerRename)
 		apiAuth.POST("/containers/recreate", r.handleContainerRecreate)
+		apiAuth.GET("/containers/check-updates", r.handleContainerCheckUpdates)
+		apiAuth.POST("/containers/upgrade", r.handleContainerUpgrade)
 		apiAuth.POST("/containers/files/mkdir", r.handleContainerFileMkdir)
 		apiAuth.POST("/containers/files/delete", r.handleContainerFileDelete)
 		apiAuth.POST("/containers/files/upload", r.handleContainerFileUpload)
@@ -1040,6 +1042,83 @@ func (r *Router) handleContainerRecreate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "container_id": newContainerID})
+}
+
+// handleContainerCheckUpdates 检测所有容器镜像是否有更新
+func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
+	result, err := r.app.ContainerService.CheckUpdates(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// handleContainerUpgrade 拉取最新镜像并重建容器
+func (r *Router) handleContainerUpgrade(c *gin.Context) {
+	var body struct {
+		ContainerID string `json:"container_id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ContainerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "container_id required"})
+		return
+	}
+	// 先 inspect 原容器拿镜像名
+	inspect, err := r.app.DockerRepo.ContainerInspect(c.Request.Context(), body.ContainerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	imageRef := inspect.Config.Image
+	// pull 最新镜像
+	if rc, err := r.app.DockerRepo.ImagePull(c.Request.Context(), imageRef, types.ImagePullOptions{}); err == nil {
+		io.Copy(io.Discard, rc)
+		rc.Close()
+	}
+	// 用原配置重建（复用 RecreateContainer，只改镜像）
+	execReq := &execlib.RecreateRequest{
+		ContainerID: body.ContainerID,
+		Name:        strings.TrimPrefix(inspect.Name, "/"),
+		Image:       imageRef,
+		Restart:     string(inspect.HostConfig.RestartPolicy.Name),
+		Network:     string(inspect.HostConfig.NetworkMode),
+		Privileged:  inspect.HostConfig.Privileged,
+		TTY:         inspect.Config.Tty,
+		PullLatest:  true,
+	}
+	// 端口
+	for pn, binding := range inspect.HostConfig.PortBindings {
+		for _, b := range binding {
+			portNum := strings.SplitN(string(pn), "/", 2)[0]
+			execReq.Ports = append(execReq.Ports, execlib.PortMapping{
+				Host:      b.HostPort,
+				Container: portNum,
+			})
+		}
+	}
+	// 挂载
+	for _, b := range inspect.HostConfig.Binds {
+		parts := strings.SplitN(b, ":", 3)
+		if len(parts) >= 2 {
+			execReq.Volumes = append(execReq.Volumes, execlib.VolumeMapping{
+				Host:      parts[0],
+				Container: parts[1],
+			})
+		}
+	}
+	// 环境变量
+	for _, env := range inspect.Config.Env {
+		kv := strings.SplitN(env, "=", 2)
+		if len(kv) == 2 {
+			execReq.Env = append(execReq.Env, execlib.EnvVar{Key: kv[0], Value: kv[1]})
+		}
+	}
+	newID, err := r.app.TerminalService.RecreateContainer(c.Request.Context(), execReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success", "container_id": newID})
 }
 
 func (r *Router) handleContainerStats(c *gin.Context) {

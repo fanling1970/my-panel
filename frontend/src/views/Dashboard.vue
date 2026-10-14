@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSystemStore } from '@/stores/system'
 import { useContainerStore } from '@/stores/containers'
 import { useComposeStore } from '@/stores/compose'
@@ -19,6 +20,39 @@ const networkStore = useNetworkStore()
 const volumeStore = useVolumeStore()
 
 const showUpdateDialog = ref(false)
+
+// 容器更新检测
+const checking = ref(false)
+const updateResults = ref<Array<{ container_id: string; name: string; image: string; has_update: boolean }>>([])
+const updateAvailableCount = computed(() => updateResults.value.filter(r => r.has_update).length)
+const pendingCheckCount = computed(() => updateResults.value.length === 0 ? containerStore.containers.length : 0)
+
+async function handleCheckUpdates() {
+  try {
+    await ElMessageBox.confirm(
+      '系统将依次查询容器镜像的远端仓库，并与本地镜像摘要进行比对。检测期间可以离开当前页面；请保持当前标签页打开，不要刷新，否则剩余容器将不会继续检测。',
+      '提示',
+      { confirmButtonText: '是', cancelButtonText: '否', type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  checking.value = true
+  try {
+    const results = await containerApi.checkUpdates()
+    updateResults.value = results
+    const n = results.filter((r: any) => r.has_update).length
+    if (n > 0) {
+      ElMessage.warning(`检测完成：${n} 个容器有可用更新`)
+    } else {
+      ElMessage.success('检测完成：所有容器镜像均为最新')
+    }
+  } catch (e: any) {
+    ElMessage.error('检测失败：' + (e?.message || ''))
+  } finally {
+    checking.value = false
+  }
+}
 
 // 容器资源统计缓存
 const containerStats = reactive<Record<string, ContainerStats | null>>({})
@@ -226,6 +260,19 @@ onUnmounted(() => {
               <span>运行中 <b class="ok">{{ runningCount }}</b></span>
               <span>已停止 <b class="stop">{{ exitedCount }}</b></span>
               <span>已暂停 <b class="pause">{{ pausedCount }}</b></span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">容器更新</div>
+            <div class="stat-num" style="color:#e6a23c">{{ updateAvailableCount }}</div>
+            <div class="stat-sub">
+              <span>待更新 <b class="warn">{{ updateAvailableCount }}</b></span>
+              <span>待检查 <b class="muted">{{ pendingCheckCount }}</b></span>
+            </div>
+            <div style="margin-top:8px">
+              <el-button link type="primary" :loading="checking" @click="handleCheckUpdates">
+                {{ checking ? '检测中...' : '检测更新' }}
+              </el-button>
             </div>
           </div>
           <div class="stat-card">

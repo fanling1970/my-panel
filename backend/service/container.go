@@ -161,6 +161,62 @@ func (s *ContainerService) PullImage(ctx context.Context, image string) error {
 	return nil
 }
 
+// ContainerUpdateStatus 单个容器的更新状态
+type ContainerUpdateStatus struct {
+	ContainerID string `json:"container_id"`
+	Name        string `json:"name"`
+	Image       string `json:"image"`
+	HasUpdate   bool   `json:"has_update"`
+	Error       string `json:"error,omitempty"`
+}
+
+// CheckUpdates 遍历所有容器，对比本地与远端镜像 digest
+func (s *ContainerService) CheckUpdates(ctx context.Context) ([]ContainerUpdateStatus, error) {
+	containers, err := s.dockerRepo.ContainerList(ctx, types.ContainerListOptions{All: true})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]ContainerUpdateStatus, 0, len(containers))
+	seenImages := map[string]bool{}
+	for _, c := range containers {
+		name := ""
+		if len(c.Names) > 0 {
+			name = strings.TrimPrefix(c.Names[0], "/")
+		}
+		imageRef := c.Image
+		status := ContainerUpdateStatus{ContainerID: c.ID, Name: name, Image: imageRef}
+
+		// 同一镜像只查一次远端
+		if !seenImages[imageRef] {
+			seenImages[imageRef] = true
+			localInspect, _, err := s.dockerRepo.ImageInspectWithRaw(ctx, imageRef)
+			if err != nil {
+				status.Error = err.Error()
+				result = append(result, status)
+				continue
+			}
+			remote, err := s.dockerRepo.DistributionInspect(ctx, imageRef, "")
+			if err != nil {
+				status.Error = err.Error()
+				result = append(result, status)
+				continue
+			}
+			// 本地 digest 列表里是否包含远端 digest
+			remoteDigest := remote.Descriptor.Digest.String()
+			found := false
+			for _, d := range localInspect.RepoDigests {
+				if strings.Contains(d, remoteDigest) {
+					found = true
+					break
+				}
+			}
+			status.HasUpdate = !found
+		}
+		result = append(result, status)
+	}
+	return result, nil
+}
+
 // convertContainers 转换 Docker 容器类型到模型
 func (s *ContainerService) convertContainers(containers []types.Container) []model.ContainerInfo {
 	result := make([]model.ContainerInfo, 0, len(containers))

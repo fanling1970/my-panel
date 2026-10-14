@@ -255,6 +255,30 @@ export const containerApi = {
   },
 
   /**
+   * Check all containers for image updates
+   */
+  async checkUpdates(): Promise<Array<{
+    container_id: string
+    name: string
+    image: string
+    has_update: boolean
+    error?: string
+  }>> {
+    const response = await request.get('/containers/check-updates')
+    return response.data
+  },
+
+  /**
+   * Pull latest image and recreate container
+   */
+  async upgrade(containerId: string): Promise<{ container_id: string }> {
+    const response = await request.post<{ container_id: string }>('/containers/upgrade', {
+      container_id: containerId,
+    })
+    return response.data
+  },
+
+  /**
    * Get container resource statistics
    * @param containerId Container ID
    * @returns Container stats (CPU, memory, network, etc.)

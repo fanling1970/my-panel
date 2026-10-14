@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 )
@@ -39,6 +40,7 @@ type IDockerRepository interface {
 	ImagePull(ctx context.Context, refStr string, opts types.ImagePullOptions) (io.ReadCloser, error)
 	ImageRemove(ctx context.Context, imageID string, opts types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error)
 	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
+	DistributionInspect(ctx context.Context, image, encodedAuth string) (registry.DistributionInspect, error)
 	ImageBuild(ctx context.Context, context_ io.Reader, opts types.ImageBuildOptions) (types.ImageBuildResponse, error)
 
 	// === Network Operations ===
@@ -167,6 +169,10 @@ func (r *DockerRepository) ImageRemove(ctx context.Context, imageID string, opts
 
 func (r *DockerRepository) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
 	return r.client.ImageInspectWithRaw(ctx, imageID)
+}
+
+func (r *DockerRepository) DistributionInspect(ctx context.Context, image, encodedAuth string) (registry.DistributionInspect, error) {
+	return r.client.DistributionInspect(ctx, image, encodedAuth)
 }
 
 func (r *DockerRepository) ImageBuild(ctx context.Context, context_ io.Reader, opts types.ImageBuildOptions) (types.ImageBuildResponse, error) {
