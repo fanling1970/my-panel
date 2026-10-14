@@ -19,6 +19,8 @@ export const useContainerStore = defineStore('containers', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const actionInProgress = ref(false) // 防止并发操作
+  // 检测更新结果: containerId -> true表示有更新
+  const updateMap = ref<Record<string, boolean>>({})
   
   // Search and filter state
   const searchQuery = ref('')
@@ -245,6 +247,7 @@ export const useContainerStore = defineStore('containers', () => {
     paginatedContainers,
     totalPages,
     totalContainers,
+    updateMap,
     // Actions
     prepareNodeSwitch,
     fetchContainers,

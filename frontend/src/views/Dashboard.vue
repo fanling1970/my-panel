@@ -64,6 +64,7 @@ async function handleCheckUpdates() {
         checkImageName.value = data.image
       } else if (data.type === 'result') {
         updateResults.value.push(data)
+        containerStore.updateMap[data.container_id] = data.has_update
       } else if (data.type === 'done') {
         checking.value = false
         es.close()

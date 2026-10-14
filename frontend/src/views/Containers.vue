@@ -181,6 +181,7 @@
           <el-button link type="primary" size="small" @click="handleOpenTerminal(row.id, row.name)">{{ t('container.terminal') || '终端' }}</el-button>
           <el-button link type="primary" size="small" @click="handleViewLogs(row.id, row.name)">{{ t('container.logs') || '日志' }}</el-button>
           <el-button link type="primary" size="small" @click="handleOpenConfig(row.id, row.name)">{{ t('common.edit') || '编辑' }}</el-button>
+          <el-button v-if="containerStore.updateMap[row.id]" link type="warning" size="small" @click="handleUpgrade(row)">更新</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -247,7 +248,7 @@
 import { ref, onMounted, watch, computed, onUnmounted, reactive } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useContainerStore, type ContainerState } from '@/stores/containers'
 import { useI18n } from '@/composables/useI18n'
 import { containerApi } from '@/api/containers'
@@ -442,6 +443,29 @@ function handleOpenConfig(id: string, name: string) {
   selectedContainerId.value = id
   selectedContainerName.value = name
   showConfigDialog.value = true
+}
+
+async function handleUpgrade(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `更新将拉取最新镜像并重新创建容器，服务可能短暂中断；除挂载目录外的数据将恢复至初始状态。\n\n镜像：${row.image}`,
+      '提示',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  const loading = ElMessage({ message: '正在拉取镜像并重建容器...', type: 'info', duration: 0 })
+  try {
+    await containerApi.upgrade(row.id)
+    loading.close()
+    ElMessage.success('更新完成')
+    delete containerStore.updateMap[row.id]
+    containerStore.fetchContainers()
+  } catch (e: any) {
+    loading.close()
+    ElMessage.error('更新失败：' + (e?.message || ''))
+  }
 }
 
 function handleContainerCreated() {
