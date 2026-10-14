@@ -245,7 +245,19 @@
     <!-- 容器更新进度弹窗 -->
     <el-dialog v-model="upgradeDialogVisible" title="容器更新" width="520px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-alert v-if="upgradeError" :title="upgradeError" type="error" :closable="false" style="margin-bottom: 12px" />
-      <div style="background: #f5f7fa; border-radius: 6px; padding: 14px; font-size: 13px; color: #606262; word-break: break-all;">
+      <div style="margin-bottom: 12px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span>更新容器</span><span>{{ upgradeStage === 'recreate' ? '进行中' : (upgradeStage === 'done' ? '完成' : '等待') }}</span>
+        </div>
+        <el-progress :percentage="upgradeStage === 'recreate' || upgradeStage === 'done' ? 100 : 0" :show-text="false" />
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span>拉取镜像</span><span>{{ upgradeStage === 'pull' ? '进行中' : (upgradeStage === 'recreate' || upgradeStage === 'done' ? '完成' : '等待') }}</span>
+        </div>
+        <el-progress :percentage="upgradeStage === 'pull' ? 50 : (upgradeStage === 'recreate' || upgradeStage === 'done' ? 100 : 0)" :show-text="false" />
+      </div>
+      <div style="background: #f5f7fa; border-radius: 6px; padding: 10px; margin-top: 12px; font-size: 12px; color: #606262; word-break: break-all; min-height: 32px;">
         {{ upgradeMessage }}
       </div>
     </el-dialog>
@@ -384,6 +396,7 @@ const showConfigDialog = ref(false)
 const upgradeDialogVisible = ref(false)
 const upgradeMessage = ref('')
 const upgradeError = ref('')
+const upgradeStage = ref('pull')
 
 // Selected container for logs
 const selectedContainerId = ref('')
@@ -469,6 +482,7 @@ async function handleUpgrade(row: any) {
   upgradeDialogVisible.value = true
   upgradeMessage.value = '开始...'
   upgradeError.value = ''
+  upgradeStage.value = 'pull'
   const res = await fetch('/api/containers/upgrade', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -488,14 +502,18 @@ async function handleUpgrade(row: any) {
       if (!line) continue
       try {
         const data = JSON.parse(line)
+        if (data.stage) upgradeStage.value = data.stage
         if (data.type === 'progress' || data.type === 'info') {
           upgradeMessage.value = data.message
         } else if (data.type === 'error') {
           upgradeError.value = data.message
         } else if (data.type === 'success') {
+          upgradeStage.value = 'done'
           upgradeMessage.value = '更新完成'
           delete containerStore.updateMap[row.id]
+          containerStore.updateResults = containerStore.updateResults.filter((r: any) => r.container_id !== row.id)
           containerStore.fetchContainers()
+          setTimeout(() => { upgradeDialogVisible.value = false }, 800)
         }
       } catch { /* ignore */ }
     }

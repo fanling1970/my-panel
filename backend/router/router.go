@@ -1170,7 +1170,7 @@ func (r *Router) handleContainerUpgrade(c *gin.Context) {
 		return
 	}
 	imageRef := inspect.Config.Image
-	send(fmt.Sprintf(`{"type":"info","message":"正在拉取镜像 %s ..."}`, strings.ReplaceAll(imageRef, `"`, `\"`)))
+	send(fmt.Sprintf(`{"type":"info","stage":"pull","message":"正在拉取镜像 %s ..."}`, strings.ReplaceAll(imageRef, `"`, `\"`)))
 
 	rc, err := r.app.DockerRepo.ImagePull(ctx, imageRef, r.app.RegistryService.PullOptions(imageRef))
 	if err != nil {
@@ -1191,12 +1191,12 @@ func (r *Router) handleContainerUpgrade(c *gin.Context) {
 			if st.Progress != "" {
 				msg = st.Status + " " + st.Progress
 			}
-			send(fmt.Sprintf(`{"type":"progress","message":%q}`, msg))
+			send(fmt.Sprintf(`{"type":"progress","stage":"pull","message":%q}`, msg))
 		}
 	}
 	rc.Close()
 
-	send(`{"type":"info","message":"正在重建容器..."}`)
+	send(`{"type":"info","stage":"recreate","message":"正在重建容器..."}`)
 	execReq := &execlib.RecreateRequest{
 		ContainerID: body.ContainerID,
 		Name:        strings.TrimPrefix(inspect.Name, "/"),
@@ -1205,7 +1205,7 @@ func (r *Router) handleContainerUpgrade(c *gin.Context) {
 		Network:     string(inspect.HostConfig.NetworkMode),
 		Privileged:  inspect.HostConfig.Privileged,
 		TTY:         inspect.Config.Tty,
-		PullLatest:  true,
+		PullLatest: false,
 	}
 	for pn, binding := range inspect.HostConfig.PortBindings {
 		for _, b := range binding {
