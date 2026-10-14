@@ -1125,10 +1125,18 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 			updateCount++
 		}
 		send(fmt.Sprintf(`{"type":"result","container_id":%q,"name":%q,"image":%q,"has_update":%t,"error":%q}`,
-			ct.ID, name, imageRef, hasUpdate, errMsg))
+			shortID(ct.ID), name, imageRef, hasUpdate, errMsg))
 	}
 
 	send(fmt.Sprintf(`{"type":"done","update_count":%d,"total":%d}`, updateCount, total))
+}
+
+func shortID(id string) string {
+	id = strings.TrimPrefix(id, "sha256:")
+	if len(id) > 12 {
+		return id[:12]
+	}
+	return id
 }
 
 // handleContainerUpgrade 拉取最新镜像并重建容器
