@@ -91,7 +91,8 @@ request.interceptors.response.use(
     } else if (status === 400 || status === 404 || status === 409) {
       // 客户端错误，显示后端返回的具体信息
       const errorMsg = getErrorMessage(data)
-      if (errorMsg) {
+      // 容器重建后旧ID轮询导致的"No such container"错误静默忽略
+      if (errorMsg && !errorMsg.includes('No such container')) {
         ElMessage.error(errorMsg)
       }
     } else {

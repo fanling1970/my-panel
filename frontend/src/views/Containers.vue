@@ -510,8 +510,8 @@ async function handleUpgrade(row: any) {
         } else if (data.type === 'success') {
           upgradeStage.value = 'done'
           upgradeMessage.value = '更新完成'
-          delete containerStore.updateMap[row.id]
-          containerStore.updateResults = containerStore.updateResults.filter((r: any) => r.container_id !== row.id)
+          containerStore.updateMap = {}
+          containerStore.updateResults = []
           containerStore.fetchContainers()
           setTimeout(() => { upgradeDialogVisible.value = false }, 800)
         }
