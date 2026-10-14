@@ -1092,17 +1092,26 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 			localBefore, _, err := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
 			if err == nil {
 				beforeID := localBefore.ID
-				pullOpts := r.app.RegistryService.PullOptions(imageRef)
-				reader, perr := r.app.DockerRepo.ImagePull(ctx, imageRef, pullOpts)
-				if perr == nil {
-					io.Copy(io.Discard, reader)
-					reader.Close()
-					localAfter, _, aerr := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
-					if aerr == nil {
-						hasUpdate = (beforeID != localAfter.ID)
+				// c.Image 可能是 sha256:xxx（镜像ID），从 RepoTags 拿真实镜像名
+				pullRef := imageRef
+				if len(localBefore.RepoTags) > 0 {
+					pullRef = localBefore.RepoTags[0]
+				} else if strings.HasPrefix(imageRef, "sha256:") {
+					errMsg = "无tag镜像,跳过"
+				}
+				if errMsg == "" {
+					pullOpts := r.app.RegistryService.PullOptions(pullRef)
+					reader, perr := r.app.DockerRepo.ImagePull(ctx, pullRef, pullOpts)
+					if perr == nil {
+						io.Copy(io.Discard, reader)
+						reader.Close()
+						localAfter, _, aerr := r.app.DockerRepo.ImageInspectWithRaw(ctx, pullRef)
+						if aerr == nil {
+							hasUpdate = (beforeID != localAfter.ID)
+						}
+					} else {
+						errMsg = perr.Error()
 					}
-				} else {
-					errMsg = perr.Error()
 				}
 			} else {
 				errMsg = "本地镜像检查失败"
