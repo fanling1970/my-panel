@@ -264,7 +264,7 @@ export const containerApi = {
     has_update: boolean
     error?: string
   }>> {
-    const response = await request.get('/containers/check-updates')
+    const response = await request.get('/containers/check-updates', { timeout: 300000 })
     return response.data
   },
 
