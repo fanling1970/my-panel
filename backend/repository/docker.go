@@ -49,7 +49,7 @@ type IDockerRepository interface {
 
 	// === Network Operations ===
 	NetworkList(ctx context.Context, opts types.NetworkListOptions) ([]types.NetworkResource, error)
-	NetworkPrune(ctx context.Context) (types.NetworkPruneReport, error)
+	NetworkRemoveUnused(ctx context.Context) ([]string, error)
 	NetworkCreate(ctx context.Context, name string, opts types.NetworkCreate) (types.NetworkCreateResponse, error)
 	NetworkRemove(ctx context.Context, networkID string) error
 	NetworkInspect(ctx context.Context, networkID string, opts types.NetworkInspectOptions) (types.NetworkResource, error)
@@ -202,8 +202,23 @@ func (r *DockerRepository) NetworkList(ctx context.Context, opts types.NetworkLi
 	return r.client.NetworkList(ctx, opts)
 }
 
-func (r *DockerRepository) NetworkPrune(ctx context.Context) (types.NetworkPruneReport, error) {
-	return r.client.NetworkPrune(ctx, filters.Args{})
+func (r *DockerRepository) NetworkRemoveUnused(ctx context.Context) ([]string, error) {
+	nets, err := r.client.NetworkList(ctx, types.NetworkListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	deleted := []string{}
+	for _, n := range nets {
+		if n.Name == "bridge" || n.Name == "host" || n.Name == "none" {
+			continue
+		}
+		if len(n.Containers) == 0 {
+			if err := r.client.NetworkRemove(ctx, n.ID); err == nil {
+				deleted = append(deleted, n.Name)
+			}
+		}
+	}
+	return deleted, nil
 }
 
 func (r *DockerRepository) NetworkCreate(ctx context.Context, name string, opts types.NetworkCreate) (types.NetworkCreateResponse, error) {

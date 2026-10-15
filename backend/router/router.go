@@ -1907,12 +1907,12 @@ func (r *Router) handleNetworksList(c *gin.Context) {
 }
 
 func (r *Router) handleNetworksPrune(c *gin.Context) {
-	report, err := r.app.DockerRepo.NetworkPrune(context.Background())
+	deleted, err := r.app.DockerRepo.NetworkRemoveUnused(context.Background())
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"networks_deleted": report.NetworksDeleted})
+	c.JSON(200, gin.H{"networks_deleted": deleted})
 }
 
 func (r *Router) handleNetworksCreate(c *gin.Context) {
