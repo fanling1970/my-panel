@@ -91,6 +91,7 @@ func (r *Router) Register() {
 		apiAuth.POST("/containers/run/raw", r.handleContainerRunRaw)
 		apiAuth.POST("/containers/exec", r.handleContainerExec)
 		apiAuth.GET("/containers/inspect", r.handleContainerInspect)
+		apiAuth.POST("/containers/update-restart-policy", r.handleUpdateRestartPolicy)
 		apiAuth.POST("/containers/update", r.handleContainerUpdate)
 		apiAuth.POST("/containers/rename", r.handleContainerRename)
 		apiAuth.POST("/containers/recreate", r.handleContainerRecreate)
@@ -962,6 +963,27 @@ func (r *Router) handleContainerInspect(c *gin.Context) {
 		"logDriver":       inspect.HostConfig.LogConfig.Type,
 		"logOptions":      inspect.HostConfig.LogConfig.Config,
 	})
+}
+
+func (r *Router) handleUpdateRestartPolicy(c *gin.Context) {
+	var body struct {
+		ID     string `json:"id"`
+		Policy string `json:"policy"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	ctx := context.Background()
+	hostConfig := container.UpdateConfig{
+		RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyMode(body.Policy)},
+	}
+	_, err := r.app.DockerRepo.ContainerUpdate(ctx, body.ID, hostConfig)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"message": "ok"})
 }
 
 func (r *Router) handleContainerUpdate(c *gin.Context) {

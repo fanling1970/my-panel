@@ -244,63 +244,87 @@
 
     <!-- 容器详情 Drawer -->
     <el-drawer v-model="detailVisible" :title="`容器详情 - ${detailRow?.name || ''}`" size="50%">
-      <div v-if="detailInfo">
+      <div v-if="detailInfo" style="font-size: 14px;">
         <!-- 状态管理 -->
-        <h4 style="margin: 0 0 12px;">状态管理 - <el-tag :type="detailInfo.running ? 'success' : 'info'" size="small">{{ detailInfo.state }}</el-tag></h4>
-        <el-space wrap style="margin-bottom: 20px;">
-          <el-button size="small" @click="handleAction(detailRow, 'restart')">重启</el-button>
-          <el-button size="small" type="danger" @click="handleAction(detailRow, 'stop')">停止</el-button>
-          <el-button size="small" @click="handleAction(detailRow, 'start')">启动</el-button>
-          <el-button size="small" type="primary" @click="handleOpenTerminal(detailRow.id, detailRow.name)">控制台</el-button>
-          <el-button size="small" @click="handleViewLogs(detailRow.id, detailRow.name)">日志</el-button>
+        <h4 style="margin: 0 0 16px; font-size:16px;">状态管理 - <el-tag :type="detailInfo.running ? 'success' : 'warning'" size="small">{{ detailInfo.running ? '运行中' : '已停止' }}</el-tag></h4>
+        <el-space wrap size="default" style="margin-bottom: 24px;">
+          <template v-if="detailInfo.running">
+            <el-button size="default" @click="handleAction(detailRow, 'restart')">重启</el-button>
+            <el-button size="default" type="danger" @click="handleAction(detailRow, 'stop')">停止</el-button>
+          </template>
+          <template v-else>
+            <el-button size="default" type="primary" @click="handleAction(detailRow, 'start')">启动</el-button>
+          </template>
+          <el-button size="default" @click="refreshDetail">刷新</el-button>
+          <el-button size="default" type="primary" @click="handleOpenTerminal(detailRow.id, detailRow.name)">控制台</el-button>
+          <el-button size="default" @click="handleViewLogs(detailRow.id, detailRow.name)">日志</el-button>
         </el-space>
 
         <!-- 容器管理 -->
-        <h4 style="margin: 0 0 12px;">容器管理</h4>
-        <el-space wrap style="margin-bottom: 20px;">
-          <el-button size="small" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
-          <el-button v-if="containerStore.updateMap[detailRow.id]" size="small" type="warning" @click="handleUpgrade(detailRow)">更新</el-button>
-          <el-button size="small" @click="handleAction(detailRow, 'restart')">重新部署</el-button>
-          <el-button size="small" @click="openNetDialog">网络管理</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(detailRow)">删除</el-button>
+        <h4 style="margin: 0 0 12px; font-size:16px;">容器管理</h4>
+        <el-space wrap size="default" style="margin-bottom: 24px;">
+          <el-button size="default" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
+          <el-dropdown trigger="click" @command="onUpdateCmd">
+            <el-button size="default">
+              更新<el-tag v-if="containerStore.updateMap[detailRow.id]" size="small" type="danger" style="margin-left:6px">可更新</el-tag>
+              <el-tag v-else size="small" type="success" style="margin-left:6px">已最新</el-tag>
+              <el-icon style="margin-left:4px"><arrow-down /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="check">检测更新</el-dropdown-item>
+                <el-dropdown-item v-if="containerStore.updateMap[detailRow.id]" command="upgrade">立即更新</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button size="default" type="danger" @click="handleDelete(detailRow)">删除</el-button>
+          <el-button size="default" type="danger" plain @click="handleAction(detailRow, 'restart')">重新部署</el-button>
+          <el-button size="default" @click="openNetDialog">网络管理</el-button>
         </el-space>
 
         <!-- 绑定端口 -->
-        <h4 style="margin: 16px 0 12px;">绑定端口</h4>
-        <div v-if="detailInfo.ports?.length" style="margin-bottom: 16px;">
-          <el-tag v-for="p in detailInfo.ports" :key="p.host" size="small" style="margin-right:8px">{{ p.hostIP || '0.0.0.0' }}:{{ p.host }} -> {{ p.container }}</el-tag>
+        <h4 style="margin: 20px 0 12px; font-size:16px;">绑定端口</h4>
+        <div v-if="detailInfo.ports?.length" style="margin-bottom: 20px;">
+          <el-tag v-for="p in detailInfo.ports" :key="p.host" size="default" style="margin-right:8px">{{ p.hostIP || '0.0.0.0' }}:{{ p.host }} -> {{ p.container }}</el-tag>
         </div>
-        <div v-else style="color:#909399;font-size:13px;margin-bottom:16px">-</div>
 
         <!-- 基础信息 -->
-        <h4 style="margin: 16px 0 12px;">基础信息</h4>
-        <el-descriptions :column="1" border size="small">
+        <h4 style="margin: 20px 0 12px; font-size:16px;">基础信息</h4>
+        <el-descriptions :column="1" border size="default">
           <el-descriptions-item label="主机名">{{ detailInfo.hostname }}</el-descriptions-item>
           <el-descriptions-item label="标识">{{ detailInfo.fullId?.slice(0,12) }} | {{ detailRow.name }}</el-descriptions-item>
           <el-descriptions-item label="网络">{{ detailInfo.networkMode }} | {{ detailInfo.ipAddress }} | {{ detailInfo.gateway }}</el-descriptions-item>
           <el-descriptions-item label="运行时间">创建于 {{ detailInfo.created?.slice(0,19).replace('T',' ') }}</el-descriptions-item>
+          <el-descriptions-item label="重启策略">
+            <el-select v-model="restartPolicy" size="default" style="width:220px" @change="saveRestartPolicy">
+              <el-option label="不自动重启" value="no" />
+              <el-option label="非手动停止则重启" value="unless-stopped" />
+              <el-option label="总是重启" value="always" />
+              <el-option label="异常退出才重启" value="on-failure" />
+            </el-select>
+          </el-descriptions-item>
         </el-descriptions>
 
         <!-- 环境变量 -->
-        <h4 style="margin: 16px 0 12px;">环境变量</h4>
-        <div v-if="detailInfo.env?.length" style="margin-bottom:16px">
-          <div v-for="e in detailInfo.env" :key="e.key" style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
+        <h4 style="margin: 20px 0 12px; font-size:16px;">环境变量</h4>
+        <div v-if="detailInfo.env?.length" style="margin-bottom:20px">
+          <div v-for="e in detailInfo.env" :key="e.key" style="padding:8px 0;border-bottom:1px solid #f0f0f0">
             <el-tag size="small" style="margin-right:8px">{{ e.key }}</el-tag> = {{ e.value }}
           </div>
         </div>
 
         <!-- 挂载目录 -->
-        <h4 style="margin: 16px 0 12px;">挂载目录详情</h4>
-        <div v-if="detailInfo.volumes?.length" style="margin-bottom:16px">
-          <div v-for="v in detailInfo.volumes" :key="v.host+v.container" style="display:flex;gap:12px;padding:6px 0;font-size:13px">
+        <h4 style="margin: 20px 0 12px; font-size:16px;">挂载目录详情</h4>
+        <div v-if="detailInfo.volumes?.length" style="margin-bottom:20px">
+          <div v-for="v in detailInfo.volumes" :key="v.host+v.container" style="display:flex;gap:12px;padding:8px 0">
             <span style="color:#1d6fd8;flex:1">{{ v.host }}</span>
             <span style="flex:1">{{ v.container }}</span>
           </div>
         </div>
 
         <!-- 镜像详情 -->
-        <h4 style="margin: 16px 0 12px;">镜像详情</h4>
-        <el-descriptions :column="1" border size="small">
+        <h4 style="margin: 20px 0 12px; font-size:16px;">镜像详情</h4>
+        <el-descriptions :column="1" border size="default">
           <el-descriptions-item label="Image Tag">{{ detailInfo.image }}</el-descriptions-item>
           <el-descriptions-item label="Image">{{ detailInfo.imageId?.slice(0,40) }}</el-descriptions-item>
           <el-descriptions-item label="CMD">{{ detailInfo.cmd?.join(' ') || '-' }}</el-descriptions-item>
@@ -520,6 +544,12 @@ async function handleOpenDetail(row: any) {
   detailInfo.value = null
   try {
     detailInfo.value = await containerApi.inspect(row.id)
+    // 重启策略
+    if (detailInfo.value?.hostConfig?.RestartPolicy?.Name) {
+      restartPolicy.value = detailInfo.value.hostConfig.RestartPolicy.Name
+    } else if (detailInfo.value?.restartPolicy) {
+      restartPolicy.value = detailInfo.value.restartPolicy
+    }
   } catch {
     detailInfo.value = null
   }
@@ -530,8 +560,40 @@ async function handleAction(row: any, action: 'start' | 'stop' | 'restart' | 're
     await containerStore.containerAction(row.id, action)
     ElMessage.success('操作成功')
     await containerStore.fetchContainers()
+    if (action !== 'remove') await refreshDetail()
   } catch (e: any) {
     ElMessage.error('操作失败：' + (e?.message || ''))
+  }
+}
+
+async function refreshDetail() {
+  if (!detailRow.value) return
+  try { detailInfo.value = await containerApi.inspect(detailRow.value.id) } catch {}
+}
+
+const restartPolicy = ref('no')
+
+async function saveRestartPolicy(val: string) {
+  try {
+    await request.post('/containers/update-restart-policy', { id: detailRow.value.id, policy: val })
+    ElMessage.success('重启策略已更新')
+  } catch (e: any) {
+    ElMessage.error('更新失败：' + (e?.response?.data?.error || e?.message || ''))
+  }
+}
+
+async function onUpdateCmd(cmd: string) {
+  if (cmd === 'check') {
+    // 触发单个容器检测更新
+    try {
+      await request.get('/containers/check-update-one', { params: { id: detailRow.value.id } })
+      await containerStore.fetchContainers()
+      ElMessage.success('检测完成')
+    } catch (e: any) {
+      ElMessage.error('检测失败：' + (e?.response?.data?.error || e?.message || ''))
+    }
+  } else if (cmd === 'upgrade') {
+    handleUpgrade(detailRow.value)
   }
 }
 
