@@ -260,6 +260,8 @@
         <el-space wrap style="margin-bottom: 20px;">
           <el-button size="small" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
           <el-button v-if="containerStore.updateMap[detailRow.id]" size="small" type="warning" @click="handleUpgrade(detailRow)">更新</el-button>
+          <el-button size="small" @click="handleAction(detailRow, 'restart')">重新部署</el-button>
+          <el-button size="small" @click="openNetDialog">网络管理</el-button>
           <el-button size="small" type="danger" @click="handleDelete(detailRow)">删除</el-button>
         </el-space>
 
@@ -308,6 +310,22 @@
       <div v-else style="color:#909399">加载中...</div>
     </el-drawer>
 
+    <!-- 网络管理弹窗 -->
+    <el-dialog v-model="netDialogVisible" title="网络管理" width="700px">
+      <div style="margin-bottom:12px;text-align:right">
+        <el-button size="small" @click="loadNetworks">刷新</el-button>
+      </div>
+      <el-table :data="networks" size="small" border>
+        <el-table-column prop="Name" label="名称" />
+        <el-table-column prop="Driver" label="驱动" width="100" />
+        <el-table-column label="操作" width="100">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="connectNetwork(row.Name)">加入</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
     <!-- 容器更新进度弹窗 -->
     <el-dialog v-model="upgradeDialogVisible" title="容器更新" width="520px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-alert v-if="upgradeError" :title="upgradeError" type="error" :closable="false" style="margin-bottom: 12px" />
@@ -338,6 +356,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useContainerStore, type ContainerState } from '@/stores/containers'
 import { useI18n } from '@/composables/useI18n'
 import { containerApi } from '@/api/containers'
+import request from '@/utils/request'
 import type { ContainerStats } from '@/types'
 import CreateContainerDialog from '@/components/container/CreateContainerDialog.vue'
 import DockerRunDialog from '@/components/container/DockerRunDialog.vue'
@@ -522,6 +541,32 @@ async function handleDelete(row: any) {
   } catch { return }
   await handleAction(row, 'remove')
   detailVisible.value = false
+}
+
+// 网络管理
+const netDialogVisible = ref(false)
+const networks = ref<any[]>([])
+
+async function openNetDialog() {
+  netDialogVisible.value = true
+  await loadNetworks()
+}
+
+async function loadNetworks() {
+  try {
+    const res = await request.get('/networks')
+    networks.value = res.data || []
+  } catch { networks.value = [] }
+}
+
+async function connectNetwork(netName: string) {
+  try {
+    await request.post('/networks/connect', { networkID: netName, containerID: detailRow.value.id })
+    ElMessage.success(`已加入网络 ${netName}`)
+    netDialogVisible.value = false
+  } catch (e: any) {
+    ElMessage.error('加入失败：' + (e?.response?.data?.error || e?.message || ''))
+  }
 }
 
 // Sync local state with store
