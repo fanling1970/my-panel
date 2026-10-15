@@ -266,19 +266,18 @@
           <el-button size="default" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
           <el-dropdown trigger="click" @command="onUpdateCmd">
             <el-button size="default">
-              更新<el-tag v-if="containerStore.updateMap[detailRow.id]" size="small" type="danger" style="margin-left:6px">可更新</el-tag>
-              <el-tag v-else size="small" type="success" style="margin-left:6px">已最新</el-tag>
+              更新<el-tag v-if="containerStore.updateMap[detailRow.id]" size="small" type="danger" style="margin-left:8px">可更新</el-tag>
+              <el-tag v-else size="small" type="success" style="margin-left:8px">已最新</el-tag>
               <el-icon style="margin-left:4px"><arrow-down /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="check">检测更新</el-dropdown-item>
-                <el-dropdown-item v-if="containerStore.updateMap[detailRow.id]" command="upgrade">立即更新</el-dropdown-item>
+                <el-dropdown-item command="upgrade">立即更新</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
           <el-button size="default" type="danger" @click="handleDelete(detailRow)">删除</el-button>
-          <el-button size="default" type="danger" plain @click="handleAction(detailRow, 'restart')">重新部署</el-button>
+          <el-button size="default" type="danger" plain @click="handleRedeploy">重新部署</el-button>
           <el-button size="default" @click="openNetDialog">网络管理</el-button>
         </el-space>
 
@@ -583,18 +582,16 @@ async function saveRestartPolicy(val: string) {
 }
 
 async function onUpdateCmd(cmd: string) {
-  if (cmd === 'check') {
-    // 触发单个容器检测更新
-    try {
-      await request.get('/containers/check-update-one', { params: { id: detailRow.value.id } })
-      await containerStore.fetchContainers()
-      ElMessage.success('检测完成')
-    } catch (e: any) {
-      ElMessage.error('检测失败：' + (e?.response?.data?.error || e?.message || ''))
-    }
-  } else if (cmd === 'upgrade') {
+  if (cmd === 'upgrade') {
     handleUpgrade(detailRow.value)
   }
+}
+
+async function handleRedeploy() {
+  try {
+    await ElMessageBox.confirm('将使用当前配置删除并重建容器，除挂载目录外的数据将全部恢复至初始状态。是否确定？', '提示', { type: 'warning' })
+  } catch { return }
+  await handleAction(detailRow.value, 'restart')
 }
 
 async function handleDelete(row: any) {
