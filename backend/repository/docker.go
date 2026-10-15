@@ -42,6 +42,9 @@ type IDockerRepository interface {
 	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
 	DistributionInspect(ctx context.Context, image, encodedAuth string) (registry.DistributionInspect, error)
 	ImageBuild(ctx context.Context, context_ io.Reader, opts types.ImageBuildOptions) (types.ImageBuildResponse, error)
+	ImagesPrune(ctx context.Context) (types.ImagesPruneReport, error)
+	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
+	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
 
 	// === Network Operations ===
 	NetworkList(ctx context.Context, opts types.NetworkListOptions) ([]types.NetworkResource, error)
@@ -177,6 +180,18 @@ func (r *DockerRepository) DistributionInspect(ctx context.Context, image, encod
 
 func (r *DockerRepository) ImageBuild(ctx context.Context, context_ io.Reader, opts types.ImageBuildOptions) (types.ImageBuildResponse, error) {
 	return r.client.ImageBuild(ctx, context_, opts)
+}
+
+func (r *DockerRepository) ImagesPrune(ctx context.Context) (types.ImagesPruneReport, error) {
+	return r.client.ImagesPrune(ctx, types.ImagesPruneOptions{})
+}
+
+func (r *DockerRepository) ImageSave(ctx context.Context, images []string) (io.ReadCloser, error) {
+	return r.client.ImageSave(ctx, images)
+}
+
+func (r *DockerRepository) ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error) {
+	return r.client.ImageLoad(ctx, input, quiet)
 }
 
 // === Network Operations ===

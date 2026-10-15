@@ -108,6 +108,9 @@ func (r *Router) Register() {
 		apiAuth.POST("/images/build", r.handleImagesBuild)
 		apiAuth.POST("/images/pull", r.handleImagesPull)
 		apiAuth.POST("/images/remove", r.handleImagesRemove)
+		apiAuth.POST("/images/prune", r.handleImagesPrune)
+		apiAuth.GET("/images/export", r.handleImagesExport)
+		apiAuth.POST("/images/import", r.handleImagesImport)
 
 		// Network routes
 		apiAuth.GET("/networks", r.handleNetworksList)
@@ -1843,6 +1846,50 @@ func (r *Router) handleImagesRemove(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleImagesPrune(c *gin.Context) {
+	report, err := r.app.DockerRepo.ImagesPrune(context.Background())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"deleted": len(report.ImagesDeleted), "space_reclaimed": report.SpaceReclaimed})
+}
+
+func (r *Router) handleImagesExport(c *gin.Context) {
+	id := c.Query("id")
+	rc, err := r.app.DockerRepo.ImageSave(context.Background(), []string{id})
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	defer rc.Close()
+	c.Header("Content-Disposition", "attachment; filename="+id[:12]+".tar")
+	c.Header("Content-Type", "application/x-tar")
+	io.Copy(c.Writer, rc)
+}
+
+func (r *Router) handleImagesImport(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(400, gin.H{"error": "请上传文件"})
+		return
+	}
+	f, err := file.Open()
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	defer f.Close()
+	rc, err := r.app.DockerRepo.ImageLoad(context.Background(), f, false)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	defer rc.Close()
+	io.Copy(io.Discard, rc)
+	c.JSON(200, gin.H{"status": "success"})
 }
 
 // === Network Handlers ===
