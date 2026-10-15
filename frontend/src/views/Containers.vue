@@ -325,12 +325,19 @@
       <div v-else style="color:#909399">加载中...</div>
     </el-drawer>
 
-    <!-- 网络管理弹窗 -->
-    <el-dialog v-model="netDialogVisible" title="网络管理" width="700px">
-      <div style="margin-bottom:12px;text-align:right">
-        <el-button size="small" @click="loadNetworks">刷新</el-button>
+    <!-- 网络管理 Drawer -->
+    <el-drawer v-model="netDialogVisible" title="网络管理" size="50%">
+      <div style="margin-bottom:16px;text-align:right">
+        <el-button size="default" @click="loadNetworks">刷新</el-button>
       </div>
-      <el-table :data="networks" size="small" border>
+      <h4 style="margin:0 0 12px;font-size:16px">所属网络</h4>
+      <el-table :data="currentNetworks" size="default" border style="margin-bottom:24px">
+        <el-table-column prop="name" label="网络名称" />
+        <el-table-column prop="container" label="容器名称" />
+        <el-table-column prop="ip" label="IP" />
+      </el-table>
+      <h4 style="margin:0 0 12px;font-size:16px">加入网络</h4>
+      <el-table :data="networks" size="default" border>
         <el-table-column prop="name" label="名称" />
         <el-table-column prop="driver" label="驱动" width="100" />
         <el-table-column label="操作" width="100">
@@ -339,7 +346,7 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-dialog>
+    </el-drawer>
 
     <!-- 容器更新进度弹窗 -->
     <el-dialog v-model="upgradeDialogVisible" title="容器更新" width="520px" :close-on-click-modal="false" :close-on-press-escape="false">
@@ -621,6 +628,10 @@ async function handleDelete(row: any) {
 // 网络管理
 const netDialogVisible = ref(false)
 const networks = ref<any[]>([])
+const currentNetworks = computed(() => {
+  if (!detailInfo.value) return []
+  return [{ name: detailInfo.value.networkMode, container: detailRow.value?.name, ip: detailInfo.value.ipAddress || '-' }]
+})
 
 async function openNetDialog() {
   netDialogVisible.value = true
