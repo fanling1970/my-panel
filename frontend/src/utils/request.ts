@@ -97,10 +97,9 @@ request.interceptors.response.use(
       }
     } else {
       const errorMsg = getErrorMessage(data)
-      if (errorMsg && !errorMsg.includes('EOF')) {
-        ElMessage.error(errorMsg)
-      } else if (error.message && error.message !== 'EOF') {
-        ElMessage.error(error.message)
+      const msg = errorMsg || error.message || ''
+      if (msg && !msg.includes('EOF') && !msg.includes('No such container')) {
+        ElMessage.error(msg)
       }
     }
 
