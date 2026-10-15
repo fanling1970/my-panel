@@ -219,7 +219,8 @@ onMounted(() => {
 
 <style scoped>
 .images-page {
-  padding: 20px;
+  margin: -20px;
+  padding: 12px 20px 20px;
 }
 
 .page-header {
