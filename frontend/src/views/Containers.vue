@@ -244,8 +244,9 @@
 
     <!-- 容器详情 Drawer -->
     <el-drawer v-model="detailVisible" :title="`容器详情 - ${detailRow?.name || ''}`" size="50%">
-      <div v-if="detailRow">
-        <h4 style="margin: 0 0 12px;">状态管理 - <el-tag :type="detailRow.state === 'running' ? 'success' : 'info'" size="small">{{ detailRow.state }}</el-tag></h4>
+      <div v-if="detailInfo">
+        <!-- 状态管理 -->
+        <h4 style="margin: 0 0 12px;">状态管理 - <el-tag :type="detailInfo.running ? 'success' : 'info'" size="small">{{ detailInfo.state }}</el-tag></h4>
         <el-space wrap style="margin-bottom: 20px;">
           <el-button size="small" @click="handleAction(detailRow, 'restart')">重启</el-button>
           <el-button size="small" type="danger" @click="handleAction(detailRow, 'stop')">停止</el-button>
@@ -254,6 +255,7 @@
           <el-button size="small" @click="handleViewLogs(detailRow.id, detailRow.name)">日志</el-button>
         </el-space>
 
+        <!-- 容器管理 -->
         <h4 style="margin: 0 0 12px;">容器管理</h4>
         <el-space wrap style="margin-bottom: 20px;">
           <el-button size="small" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
@@ -261,13 +263,49 @@
           <el-button size="small" type="danger" @click="handleDelete(detailRow)">删除</el-button>
         </el-space>
 
-        <h4 style="margin: 0 0 12px;">基本信息</h4>
+        <!-- 绑定端口 -->
+        <h4 style="margin: 16px 0 12px;">绑定端口</h4>
+        <div v-if="detailInfo.ports?.length" style="margin-bottom: 16px;">
+          <el-tag v-for="p in detailInfo.ports" :key="p.host" size="small" style="margin-right:8px">{{ p.hostIP || '0.0.0.0' }}:{{ p.host }} -> {{ p.container }}</el-tag>
+        </div>
+        <div v-else style="color:#909399;font-size:13px;margin-bottom:16px">-</div>
+
+        <!-- 基础信息 -->
+        <h4 style="margin: 16px 0 12px;">基础信息</h4>
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="容器ID">{{ detailRow.id }}</el-descriptions-item>
-          <el-descriptions-item label="镜像">{{ detailRow.image }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ detailRow.state }}</el-descriptions-item>
+          <el-descriptions-item label="主机名">{{ detailInfo.hostname }}</el-descriptions-item>
+          <el-descriptions-item label="标识">{{ detailInfo.fullId?.slice(0,12) }} | {{ detailRow.name }}</el-descriptions-item>
+          <el-descriptions-item label="网络">{{ detailInfo.networkMode }} | {{ detailInfo.ipAddress }} | {{ detailInfo.gateway }}</el-descriptions-item>
+          <el-descriptions-item label="运行时间">创建于 {{ detailInfo.created?.slice(0,19).replace('T',' ') }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 环境变量 -->
+        <h4 style="margin: 16px 0 12px;">环境变量</h4>
+        <div v-if="detailInfo.env?.length" style="margin-bottom:16px">
+          <div v-for="e in detailInfo.env" :key="e.key" style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
+            <el-tag size="small" style="margin-right:8px">{{ e.key }}</el-tag> = {{ e.value }}
+          </div>
+        </div>
+
+        <!-- 挂载目录 -->
+        <h4 style="margin: 16px 0 12px;">挂载目录详情</h4>
+        <div v-if="detailInfo.volumes?.length" style="margin-bottom:16px">
+          <div v-for="v in detailInfo.volumes" :key="v.host+v.container" style="display:flex;gap:12px;padding:6px 0;font-size:13px">
+            <span style="color:#1d6fd8;flex:1">{{ v.host }}</span>
+            <span style="flex:1">{{ v.container }}</span>
+          </div>
+        </div>
+
+        <!-- 镜像详情 -->
+        <h4 style="margin: 16px 0 12px;">镜像详情</h4>
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="Image Tag">{{ detailInfo.image }}</el-descriptions-item>
+          <el-descriptions-item label="Image">{{ detailInfo.imageId?.slice(0,40) }}</el-descriptions-item>
+          <el-descriptions-item label="CMD">{{ detailInfo.cmd?.join(' ') || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="ENTRYPOINT">{{ detailInfo.entrypoint?.join(' ') || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
+      <div v-else style="color:#909399">加载中...</div>
     </el-drawer>
 
     <!-- 容器更新进度弹窗 -->
@@ -455,10 +493,17 @@ async function batchAction(action: 'start' | 'stop' | 'restart' | 'remove' | 'pa
 // 容器详情
 const detailVisible = ref(false)
 const detailRow = ref<any>(null)
+const detailInfo = ref<any>(null)
 
-function handleOpenDetail(row: any) {
+async function handleOpenDetail(row: any) {
   detailRow.value = row
   detailVisible.value = true
+  detailInfo.value = null
+  try {
+    detailInfo.value = await containerApi.inspect(row.id)
+  } catch {
+    detailInfo.value = null
+  }
 }
 
 async function handleAction(row: any, action: 'start' | 'stop' | 'restart' | 'remove') {
