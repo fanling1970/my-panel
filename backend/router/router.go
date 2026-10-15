@@ -96,6 +96,7 @@ func (r *Router) Register() {
 		apiAuth.POST("/containers/rename", r.handleContainerRename)
 		apiAuth.POST("/containers/recreate", r.handleContainerRecreate)
 		apiAuth.GET("/containers/check-updates", r.handleContainerCheckUpdates)
+		apiAuth.GET("/containers/check-update-one", r.handleContainerCheckUpdateOne)
 		apiAuth.POST("/containers/upgrade", r.handleContainerUpgrade)
 		apiAuth.POST("/containers/files/mkdir", r.handleContainerFileMkdir)
 		apiAuth.POST("/containers/files/delete", r.handleContainerFileDelete)
@@ -1151,6 +1152,53 @@ func (r *Router) handleContainerCheckUpdates(c *gin.Context) {
 	}
 
 	send(fmt.Sprintf(`{"type":"done","update_count":%d,"total":%d}`, updateCount, total))
+}
+
+func (r *Router) handleContainerCheckUpdateOne(c *gin.Context) {
+	id := c.Query("id")
+	ctx := context.Background()
+	inspect, err := r.app.DockerRepo.ContainerInspect(ctx, id)
+	if err != nil {
+		c.JSON(500, gin.H{"status": "error", "error": err.Error()})
+		return
+	}
+	imageRef := inspect.Config.Image
+	localBefore, _, err := r.app.DockerRepo.ImageInspectWithRaw(ctx, imageRef)
+	if err != nil {
+		c.JSON(200, gin.H{"status": "error", "error": err.Error()})
+		return
+	}
+	pullRef := imageRef
+	if len(localBefore.RepoTags) > 0 {
+		pullRef = localBefore.RepoTags[0]
+	}
+	if strings.HasPrefix(imageRef, "sha256:") && len(localBefore.RepoTags) == 0 {
+		c.JSON(200, gin.H{"status": "no-tag"})
+		return
+	}
+	if len(localBefore.RepoDigests) == 0 {
+		c.JSON(200, gin.H{"status": "no-digest"})
+		return
+	}
+	pullOpts := r.app.RegistryService.PullOptions(pullRef)
+	remote, derr := r.app.DockerRepo.DistributionInspect(ctx, pullRef, pullOpts.RegistryAuth)
+	if derr != nil {
+		c.JSON(200, gin.H{"status": "error", "error": derr.Error()})
+		return
+	}
+	remoteDigest := remote.Descriptor.Digest.String()
+	found := false
+	for _, d := range localBefore.RepoDigests {
+		if strings.Contains(d, remoteDigest) {
+			found = true
+			break
+		}
+	}
+	if found {
+		c.JSON(200, gin.H{"status": "latest"})
+	} else {
+		c.JSON(200, gin.H{"status": "update"})
+	}
 }
 
 func shortID(id string) string {
