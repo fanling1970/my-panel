@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
@@ -183,7 +184,7 @@ func (r *DockerRepository) ImageBuild(ctx context.Context, context_ io.Reader, o
 }
 
 func (r *DockerRepository) ImagesPrune(ctx context.Context) (types.ImagesPruneReport, error) {
-	return r.client.ImagesPrune(ctx)
+	return r.client.ImagesPrune(ctx, filters.Args{})
 }
 
 func (r *DockerRepository) ImageSave(ctx context.Context, images []string) (io.ReadCloser, error) {
