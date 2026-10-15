@@ -70,26 +70,42 @@
       @built="handleImageBuilt"
     />
 
-    <!-- 拉取镜像 -->
-    <el-dialog v-model="showPullDialog" title="拉取远程镜像" width="600px">
-      <el-input v-model="pullImage" placeholder="请输入镜像地址，如 nginx:latest" style="margin-bottom:12px" />
-      <el-progress v-if="pulling" :percentage="pullProgress" style="margin-bottom:12px" />
-      <template #footer>
-        <el-button @click="showPullDialog = false">取消</el-button>
+    <!-- 拉取镜像 Drawer -->
+    <el-drawer v-model="showPullDialog" title="拉取远程镜像" size="50%">
+      <div style="font-size:13px;color:#606262;line-height:2;margin-bottom:24px">
+        <div>• 镜像名称未包含仓库地址时，默认从 hub.docker.io 下载。</div>
+        <div>• 拉取非 hub.docker.io 镜像时，请填写完整镜像地址。</div>
+      </div>
+      <h4 style="margin-bottom:12px;font-size:16px">拉取镜像</h4>
+      <div style="display:flex;gap:12px;margin-bottom:12px">
+        <el-select v-model="pullArch" placeholder="默认当前架构" style="width:200px">
+          <el-option label="amd64" value="amd64" />
+          <el-option label="arm64" value="arm64" />
+        </el-select>
+        <el-select v-model="pullRegistry" placeholder="选择镜像仓库，默认为 docker.io" style="flex:1">
+          <el-option label="docker.io" value="docker.io" />
+        </el-select>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <el-input v-model="pullImage" placeholder="请输入镜像地址" style="flex:1" />
         <el-button type="primary" :loading="pulling" @click="handlePull">拉取镜像</el-button>
-      </template>
-    </el-dialog>
+      </div>
+      <h4 style="margin-bottom:12px;font-size:16px">拉取进度</h4>
+      <el-progress :percentage="pullProgress" />
+    </el-drawer>
 
-    <!-- 导入镜像 -->
-    <el-dialog v-model="showImportDialog" title="导入镜像" width="600px">
-      <el-upload action="/api/images/import" :show-file-list="true" accept=".tar">
-        <el-button type="primary">选择 tar 文件上传</el-button>
+    <!-- 导入镜像 Drawer -->
+    <el-drawer v-model="showImportDialog" title="导入镜像" size="50%">
+      <h4 style="margin-bottom:12px;font-size:16px">本地镜像</h4>
+      <el-upload action="/api/images/import" :show-file-list="true" accept=".tar" drag style="margin-bottom:24px">
+        <div style="padding:24px">
+          <div style="font-size:32px;color:#1d6fd8;margin-bottom:8px">⬆</div>
+          <div>导入镜像包，最多支持同时上传 10 个。（仅限导出镜像生成的 .tar 文件）</div>
+        </div>
       </el-upload>
-      <template #footer>
-        <el-button @click="showImportDialog = false">取消</el-button>
-        <el-button type="primary" @click="showImportDialog = false">确定</el-button>
-      </template>
-    </el-dialog>
+      <h4 style="margin-bottom:12px;font-size:16px">远程地址</h4>
+      <el-input v-model="remoteImportUrl" placeholder="输入远程镜像地址导入" />
+    </el-drawer>
   </div>
 </template>
 
@@ -109,6 +125,9 @@ const showBuildDialog = ref(false)
 const showPullDialog = ref(false)
 const showImportDialog = ref(false)
 const pullImage = ref('')
+const pullArch = ref('')
+const pullRegistry = ref('')
+const remoteImportUrl = ref('')
 const pulling = ref(false)
 const pullProgress = ref(0)
 
@@ -188,7 +207,8 @@ async function handleExport(row: any) {
   try {
     await ElMessageBox.confirm('导出镜像文件后可通过面板导入恢复，是否确认？', '提示')
   } catch { return }
-  window.open('/api/images/export?id=' + row.id, '_blank')
+  const name = (row.name + '_' + row.tag).replace(/[^a-zA-Z0-9._-]/g, '_') || row.id.slice(0, 12)
+  window.open('/api/images/export?id=' + row.id + '&name=' + encodeURIComponent(name), '_blank')
 }
 
 // Fetch images on mount

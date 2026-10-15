@@ -1859,13 +1859,17 @@ func (r *Router) handleImagesPrune(c *gin.Context) {
 
 func (r *Router) handleImagesExport(c *gin.Context) {
 	id := c.Query("id")
+	name := c.Query("name")
+	if name == "" {
+		name = id[:12]
+	}
 	rc, err := r.app.DockerRepo.ImageSave(context.Background(), []string{id})
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 	defer rc.Close()
-	c.Header("Content-Disposition", "attachment; filename="+id[:12]+".tar")
+	c.Header("Content-Disposition", "attachment; filename="+name+".tar")
 	c.Header("Content-Type", "application/x-tar")
 	io.Copy(c.Writer, rc)
 }
