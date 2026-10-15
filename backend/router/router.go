@@ -1882,13 +1882,11 @@ func (r *Router) handleImagesImport(c *gin.Context) {
 		return
 	}
 	defer f.Close()
-	rc, err := r.app.DockerRepo.ImageLoad(context.Background(), f, false)
+	_, err = r.app.DockerRepo.ImageLoad(context.Background(), f, false)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	defer rc.Close()
-	io.Copy(io.Discard, rc)
 	c.JSON(200, gin.H{"status": "success"})
 }
 
