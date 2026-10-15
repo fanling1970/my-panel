@@ -265,7 +265,7 @@
         <el-space wrap size="default" style="margin-bottom: 24px;">
           <el-button size="default" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
           <el-button v-if="containerStore.updateMap[detailRow.id] || checkBadge === '有更新'" size="default" type="warning" @click="handleUpgrade(detailRow)">更新</el-button>
-          <el-badge :value="checkBadge" :type="checkBadgeType" style="margin-right:16px">
+          <el-badge :value="checkBadge" :type="checkBadgeType" style="margin-right:46px">
             <el-button size="default" :loading="checkLoading" @click="checkOneUpdate">检测更新</el-button>
           </el-badge>
           <el-button size="default" type="danger" @click="handleDelete(detailRow)">删除</el-button>
@@ -331,11 +331,11 @@
         <el-button size="small" @click="loadNetworks">刷新</el-button>
       </div>
       <el-table :data="networks" size="small" border>
-        <el-table-column prop="Name" label="名称" />
-        <el-table-column prop="Driver" label="驱动" width="100" />
+        <el-table-column prop="name" label="名称" />
+        <el-table-column prop="driver" label="驱动" width="100" />
         <el-table-column label="操作" width="100">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="connectNetwork(row.Name)">加入</el-button>
+            <el-button link type="primary" size="small" @click="connectNetwork(row.name)">加入</el-button>
           </template>
         </el-table-column>
       </el-table>
