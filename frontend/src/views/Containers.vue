@@ -75,7 +75,7 @@
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          <span class="container-name">{{ row.name }}</span>
+          <el-link class="container-name" type="primary" @click="handleOpenDetail(row)">{{ row.name }}</el-link>
         </template>
       </el-table-column>
       <el-table-column
@@ -241,6 +241,34 @@
       :container-name="selectedContainerName"
       @updated="handleContainerCreated"
     />
+
+    <!-- 容器详情 Drawer -->
+    <el-drawer v-model="detailVisible" :title="`容器详情 - ${detailRow?.name || ''}`" size="50%">
+      <div v-if="detailRow">
+        <h4 style="margin: 0 0 12px;">状态管理 - <el-tag :type="detailRow.state === 'running' ? 'success' : 'info'" size="small">{{ detailRow.state }}</el-tag></h4>
+        <el-space wrap style="margin-bottom: 20px;">
+          <el-button size="small" @click="handleAction(detailRow, 'restart')">重启</el-button>
+          <el-button size="small" type="danger" @click="handleAction(detailRow, 'stop')">停止</el-button>
+          <el-button size="small" @click="handleAction(detailRow, 'start')">启动</el-button>
+          <el-button size="small" type="primary" @click="handleOpenTerminal(detailRow.id, detailRow.name)">控制台</el-button>
+          <el-button size="small" @click="handleViewLogs(detailRow.id, detailRow.name)">日志</el-button>
+        </el-space>
+
+        <h4 style="margin: 0 0 12px;">容器管理</h4>
+        <el-space wrap style="margin-bottom: 20px;">
+          <el-button size="small" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
+          <el-button v-if="containerStore.updateMap[detailRow.id]" size="small" type="warning" @click="handleUpgrade(detailRow)">更新</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(detailRow)">删除</el-button>
+        </el-space>
+
+        <h4 style="margin: 0 0 12px;">基本信息</h4>
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="容器ID">{{ detailRow.id }}</el-descriptions-item>
+          <el-descriptions-item label="镜像">{{ detailRow.image }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ detailRow.state }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+    </el-drawer>
 
     <!-- 容器更新进度弹窗 -->
     <el-dialog v-model="upgradeDialogVisible" title="容器更新" width="520px" :close-on-click-modal="false" :close-on-press-escape="false">
@@ -422,6 +450,33 @@ async function batchAction(action: 'start' | 'stop' | 'restart' | 'remove' | 'pa
   selectedIds.value = []
   ElMessage.success(t('common.success'))
   await containerStore.fetchContainers()
+}
+
+// 容器详情
+const detailVisible = ref(false)
+const detailRow = ref<any>(null)
+
+function handleOpenDetail(row: any) {
+  detailRow.value = row
+  detailVisible.value = true
+}
+
+async function handleAction(row: any, action: 'start' | 'stop' | 'restart' | 'remove') {
+  try {
+    await containerStore.containerAction(row.id, action)
+    ElMessage.success('操作成功')
+    await containerStore.fetchContainers()
+  } catch (e: any) {
+    ElMessage.error('操作失败：' + (e?.message || ''))
+  }
+}
+
+async function handleDelete(row: any) {
+  try {
+    await ElMessageBox.confirm(`确定删除容器 ${row.name}？`, '提示', { type: 'warning' })
+  } catch { return }
+  await handleAction(row, 'remove')
+  detailVisible.value = false
 }
 
 // Sync local state with store
