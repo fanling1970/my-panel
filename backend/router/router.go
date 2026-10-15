@@ -119,6 +119,7 @@ func (r *Router) Register() {
 		apiAuth.GET("/networks/inspect", r.handleNetworksInspect)
 		apiAuth.POST("/networks/connect", r.handleNetworksConnect)
 		apiAuth.POST("/networks/disconnect", r.handleNetworksDisconnect)
+		apiAuth.POST("/networks/prune", r.handleNetworksPrune)
 
 		// Volume routes
 		apiAuth.GET("/volumes", r.handleVolumesList)
@@ -1903,6 +1904,15 @@ func (r *Router) handleNetworksList(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, networks)
+}
+
+func (r *Router) handleNetworksPrune(c *gin.Context) {
+	report, err := r.app.DockerRepo.NetworkPrune(context.Background())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"networks_deleted": report.NetworksDeleted})
 }
 
 func (r *Router) handleNetworksCreate(c *gin.Context) {

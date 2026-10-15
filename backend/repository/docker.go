@@ -49,6 +49,7 @@ type IDockerRepository interface {
 
 	// === Network Operations ===
 	NetworkList(ctx context.Context, opts types.NetworkListOptions) ([]types.NetworkResource, error)
+	NetworkPrune(ctx context.Context) (types.NetworkPruneReport, error)
 	NetworkCreate(ctx context.Context, name string, opts types.NetworkCreate) (types.NetworkCreateResponse, error)
 	NetworkRemove(ctx context.Context, networkID string) error
 	NetworkInspect(ctx context.Context, networkID string, opts types.NetworkInspectOptions) (types.NetworkResource, error)
@@ -199,6 +200,10 @@ func (r *DockerRepository) ImageLoad(ctx context.Context, input io.Reader, quiet
 
 func (r *DockerRepository) NetworkList(ctx context.Context, opts types.NetworkListOptions) ([]types.NetworkResource, error) {
 	return r.client.NetworkList(ctx, opts)
+}
+
+func (r *DockerRepository) NetworkPrune(ctx context.Context) (types.NetworkPruneReport, error) {
+	return r.client.NetworkPrune(ctx, filters.Args{})
 }
 
 func (r *DockerRepository) NetworkCreate(ctx context.Context, name string, opts types.NetworkCreate) (types.NetworkCreateResponse, error) {

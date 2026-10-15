@@ -2,29 +2,11 @@
   <div class="volumes-page">
     <!-- Header with title and actions -->
     <div class="page-header">
-      <h2>{{ t('volumes.title') }}</h2>
+      <h2>存储卷管理</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="showCreateDialog = true">
-          <el-icon><Plus /></el-icon>
-          {{ t('volumes.create') }}
-        </el-button>
-        <el-popconfirm
-          :title="t('volumes.pruneConfirm')"
-          :confirm-button-text="t('common.confirm')"
-          :cancel-button-text="t('common.cancel')"
-          @confirm="handlePrune"
-        >
-          <template #reference>
-            <el-button type="warning" :disabled="volumeStore.unusedCount === 0">
-              <el-icon><Delete /></el-icon>
-              {{ t('volumes.prune') }} ({{ volumeStore.unusedCount }})
-            </el-button>
-          </template>
-        </el-popconfirm>
-        <el-button :loading="volumeStore.loading" @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
-          {{ t('common.refresh') }}
-        </el-button>
+        <el-button @click="handlePrune">自动清理</el-button>
+        <el-button type="primary" @click="showCreateDialog = true">创建存储卷</el-button>
+        <el-button :loading="volumeStore.loading" @click="handleRefresh">刷新</el-button>
       </div>
     </div>
 
@@ -32,7 +14,7 @@
     <div class="filter-bar">
       <el-input
         v-model="searchInput"
-        :placeholder="t('common.search')"
+        placeholder="搜索"
         clearable
         style="width: 300px"
         @input="handleSearch"
@@ -49,118 +31,33 @@
       :data="volumeStore.paginatedVolumes"
       stripe
       style="width: 100%"
-      @sort-change="handleSortChange"
     >
-      <el-table-column
-        prop="name"
-        :label="t('volumes.name')"
-        min-width="200"
-        sortable="custom"
-      >
+      <el-table-column prop="name" label="卷名称" min-width="200">
+        <template #default="{ row }"><span class="volume-name">{{ row.name }}</span></template>
+      </el-table-column>
+      <el-table-column prop="driver" label="驱动" width="100">
+        <template #default="{ row }"><el-tag size="small" type="primary">{{ row.driver }}</el-tag></template>
+      </el-table-column>
+      <el-table-column prop="mountpoint" label="挂载点" min-width="250">
+        <template #default="{ row }"><span class="mountpoint">{{ row.mountpoint }}</span></template>
+      </el-table-column>
+      <el-table-column label="使用者" width="150">
         <template #default="{ row }">
-          <span class="volume-name">{{ row.name }}</span>
+          <span v-if="row.containers && row.containers.length > 0">{{ row.containers.join(', ') }}</span>
+          <span v-else style="color:#909399">未使用</span>
         </template>
       </el-table-column>
-      <el-table-column
-        prop="driver"
-        :label="t('volumes.driver')"
-        width="120"
-        sortable="custom"
-      >
-        <template #default="{ row }">
-          <el-tag size="small" type="primary">{{ row.driver }}</el-tag>
-        </template>
+      <el-table-column prop="created" label="创建时间" width="180">
+        <template #default="{ row }"><span>{{ formatDate(row.created) }}</span></template>
       </el-table-column>
-      <el-table-column
-        prop="mountpoint"
-        :label="t('volumes.mountpoint')"
-        min-width="250"
-        class-name="hidden-md-and-down"
-      >
-        <template #default="{ row }">
-          <span class="mountpoint">{{ row.mountpoint }}</span>
-        </template>
+      <el-table-column label="大小" width="100">
+        <template #default="{ row }"><span>{{ row.size || '-' }}</span></template>
       </el-table-column>
-      <el-table-column
-        prop="containers"
-        :label="t('volumes.usedBy')"
-        width="150"
-        class-name="hidden-sm-and-down"
-      >
+      <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
-          <template v-if="row.containers && row.containers.length > 0">
-            <el-tooltip
-              :content="row.containers.join(', ')"
-              placement="top"
-            >
-              <el-tag size="small" type="success">
-                {{ row.containers.length }} {{ t('volumes.containers') }}
-              </el-tag>
-            </el-tooltip>
-          </template>
-          <el-tag v-else size="small" type="info">
-            {{ t('volumes.unused') }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="created"
-        :label="t('common.createdAt')"
-        width="180"
-        sortable="custom"
-        class-name="hidden-xs-only"
-      >
-        <template #default="{ row }">
-          <span>{{ formatDate(row.created) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="in_use"
-        label="Usage"
-        width="140"
-        align="center"
-      >
-        <template #default="{ row }">
-          <el-tooltip v-if="row.containers && row.containers.length > 0" :content="row.containers.join(', ')" placement="top">
-            <el-tag type="success" size="small">
-              In Use
-            </el-tag>
-          </el-tooltip>
-          <el-tag v-else type="info" size="small">
-            Unused
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        :label="t('common.actions')"
-        width="120"
-        fixed="right"
-      >
-        <template #default="{ row }">
-          <el-popconfirm
-            v-if="!row.containers || row.containers.length === 0"
-            :title="t('volumes.confirmRemove')"
-            :confirm-button-text="t('common.confirm')"
-            :cancel-button-text="t('common.cancel')"
-            @confirm="handleRemove(row.name)"
-          >
-            <template #reference>
-              <el-button type="danger" size="small" link>
-                <el-icon><Delete /></el-icon>
-                {{ t('common.delete') }}
-              </el-button>
-            </template>
+          <el-popconfirm v-if="!row.containers || row.containers.length === 0" title="确定删除？" @confirm="handleRemove(row.name)">
+            <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
           </el-popconfirm>
-          <el-tooltip
-            v-else
-            :content="t('volumes.inUse')"
-            placement="top"
-          >
-            <el-button type="info" size="small" link disabled>
-              <el-icon><Delete /></el-icon>
-              {{ t('common.delete') }}
-            </el-button>
-          </el-tooltip>
         </template>
       </el-table-column>
     </el-table>
@@ -188,13 +85,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { Refresh, Search, Delete, Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { useVolumeStore, type SortField } from '@/stores/volumes'
-import { useI18n } from '@/composables/useI18n'
+import { Search } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useVolumeStore } from '@/stores/volumes'
 import CreateVolumeDialog from '@/components/volumes/CreateVolumeDialog.vue'
 
-const { t } = useI18n()
 const volumeStore = useVolumeStore()
 
 // Local state for v-model bindings
@@ -217,26 +112,9 @@ function formatDate(dateStr: string): string {
   return date.toLocaleString()
 }
 
-// Format bytes helper
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
 // Handlers
 function handleSearch(value: string) {
   volumeStore.setSearch(value)
-}
-
-function handleSortChange({ prop, order }: { prop: string; order: string | null }) {
-  if (prop && order) {
-    const field = prop as SortField
-    volumeStore.sortField = field
-    volumeStore.sortOrder = order === 'ascending' ? 'asc' : 'desc'
-  }
 }
 
 function handlePageChange(page: number) {
@@ -254,7 +132,7 @@ async function handleRefresh() {
 async function handleRemove(name: string) {
   try {
     await volumeStore.removeVolume(name)
-    ElMessage.success(t('volumes.removeSuccess'))
+    ElMessage.success('删除成功')
   } catch {
     // Error is handled by request interceptor
   }
@@ -262,13 +140,11 @@ async function handleRemove(name: string) {
 
 async function handlePrune() {
   try {
+    await ElMessageBox.confirm('将删除所有未使用的存储卷，是否确认？', '自动清理')
     const result = await volumeStore.pruneVolumes()
     const count = result.volumesDeleted?.length || 0
-    const size = formatBytes(result.spaceReclaimed || 0)
-    ElMessage.success(t('volumes.pruneSuccess').replace('{count}', String(count)).replace('{size}', size))
-  } catch {
-    // Error is handled by request interceptor
-  }
+    ElMessage.success(`清理完成，删除 ${count} 个卷`)
+  } catch {}
 }
 
 function handleVolumeCreated() {
@@ -283,7 +159,8 @@ onMounted(() => {
 
 <style scoped>
 .volumes-page {
-  padding: 20px;
+  margin: -20px;
+  padding: 12px 20px 20px;
 }
 
 .page-header {

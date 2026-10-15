@@ -4,6 +4,7 @@
     <div class="page-header">
       <h2>网络管理</h2>
       <div class="header-actions">
+        <el-button @click="handlePrune">自动清理</el-button>
         <el-button type="primary" @click="showCreateDialog = true">创建网络</el-button>
         <el-button :loading="networkStore.loading" @click="handleRefresh">刷新</el-button>
       </div>
@@ -34,7 +35,7 @@
       </el-table-column>
       <el-table-column label="IPv4" min-width="160">
         <template #default="{ row }">
-          <div v-if="row.ipamConfig">{{ row.ipamConfig.Subnet || '-' }}<br/>{{ row.ipamConfig.Gateway || '' }}</div>
+          <div v-if="row.subnet">{{ row.subnet }}<br/>{{ row.gateway || '' }}</div>
           <span v-else>-</span>
         </template>
       </el-table-column>
@@ -84,8 +85,9 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useNetworkStore } from '@/stores/networks'
+import request from '@/utils/request'
 import type { NetworkInfo } from '@/types'
 import CreateNetworkDialog from '@/components/network/CreateNetworkDialog.vue'
 import NetworkDetailDialog from '@/components/network/NetworkDetailDialog.vue'
@@ -122,6 +124,15 @@ function handlePageSizeChange(size: number) {
 
 async function handleRefresh() {
   await networkStore.fetchNetworks()
+}
+
+async function handlePrune() {
+  try {
+    await ElMessageBox.confirm('将删除所有未使用的网络，是否确认？', '自动清理')
+    await request.post('/api/networks/prune')
+    ElMessage.success('清理完成')
+    networkStore.fetchNetworks()
+  } catch {}
 }
 
 async function handleRemoveNetwork(id: string) {
