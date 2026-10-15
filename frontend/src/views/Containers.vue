@@ -264,7 +264,7 @@
         <h4 style="margin: 0 0 12px; font-size:16px;">容器管理</h4>
         <el-space wrap size="default" style="margin-bottom: 24px;">
           <el-button size="default" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
-          <el-button v-if="containerStore.updateMap[detailRow.id] || checkBadge.value === '有更新'" size="default" type="warning" @click="handleUpgrade(detailRow)">更新</el-button>
+          <el-button v-if="containerStore.updateMap[detailRow.id] || checkBadge === '有更新'" size="default" type="warning" @click="handleUpgrade(detailRow)">更新</el-button>
           <el-badge :value="checkBadge" :type="checkBadgeType" style="margin-right:16px">
             <el-button size="default" :loading="checkLoading" @click="checkOneUpdate">检测更新</el-button>
           </el-badge>
