@@ -33,7 +33,7 @@
       style="width: 100%"
     >
       <el-table-column prop="name" label="卷名称" min-width="200">
-        <template #default="{ row }"><span class="volume-name">{{ row.name }}</span></template>
+        <template #default="{ row }"><el-link type="primary">{{ row.name }}</el-link></template>
       </el-table-column>
       <el-table-column prop="driver" label="驱动" width="100">
         <template #default="{ row }"><el-tag size="small" type="primary">{{ row.driver }}</el-tag></template>

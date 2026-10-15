@@ -29,20 +29,22 @@ func NewComposeService(dr repository.IDockerRepository, fr repository.IFileRepos
 	}
 }
 
-// ListProjects 列出 Compose 项目
+// ListProjects 列出 Compose 项目（从 docker 容器 label 读取）
 func (s *ComposeService) ListProjects() ([]model.ComposeProject, error) {
-	projects, err := s.fileRepo.ListComposeProjects()
+	ctx := context.Background()
+	containers, err := s.dockerRepo.ContainerList(ctx, types.ContainerListOptions{All: true})
 	if err != nil {
 		return nil, err
 	}
-
-	result := make([]model.ComposeProject, 0, len(projects))
-	for _, name := range projects {
-		status := s.getProjectStatus(name)
-		result = append(result, model.ComposeProject{
-			Name:   name,
-			Status: status,
-		})
+	projectSet := map[string]bool{}
+	for _, c := range containers {
+		if p, ok := c.Labels["com.docker.compose.project"]; ok && p != "" {
+			projectSet[p] = true
+		}
+	}
+	result := []model.ComposeProject{}
+	for name := range projectSet {
+		result = append(result, model.ComposeProject{Name: name, Status: "running"})
 	}
 	return result, nil
 }
