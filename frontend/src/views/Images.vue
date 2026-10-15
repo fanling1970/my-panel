@@ -2,117 +2,49 @@
   <div class="images-page">
     <!-- Header with title and actions -->
     <div class="page-header">
-      <h2>{{ t('image.title') }}</h2>
+      <h2>镜像管理</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="showBuildDialog = true">
-          <el-icon><Box /></el-icon>
-          {{ t('image.build') }}
-        </el-button>
-        <el-button :loading="imageStore.loading" @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
-          {{ t('common.refresh') }}
-        </el-button>
+        <el-button type="primary" @click="showPullDialog = true">拉取镜像</el-button>
+        <el-button @click="showImportDialog = true">导入镜像</el-button>
+        <el-button @click="showBuildDialog = true">构建镜像</el-button>
+        <el-button @click="handlePrune">清理构建缓存</el-button>
+        <el-button :loading="imageStore.loading" @click="handleRefresh">刷新</el-button>
       </div>
     </div>
 
     <!-- Search bar -->
     <div class="filter-bar">
-      <el-input
-        v-model="searchInput"
-        :placeholder="t('common.search')"
-        clearable
-        style="width: 300px"
-        @input="handleSearch"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
+      <el-input v-model="searchInput" placeholder="请输入镜像名称" clearable style="width: 300px" @input="handleSearch">
+        <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
     </div>
 
     <!-- Image table -->
-    <el-table
-      v-loading="imageStore.loading"
-      :data="imageStore.paginatedImages"
-      stripe
-      style="width: 100%"
-      @sort-change="handleSortChange"
-    >
-      <el-table-column
-        prop="id"
-        :label="t('image.id')"
-        width="140"
-        sortable="custom"
-        class-name="hidden-sm-and-down"
-      >
+    <el-table v-loading="imageStore.loading" :data="imageStore.paginatedImages" stripe style="width: 100%" @sort-change="handleSortChange">
+      <el-table-column prop="id" label="ID" width="140" sortable="custom">
         <template #default="{ row }">
-          <span class="image-id">{{ row.id.substring(0, 12) }}</span>
+          <el-link type="primary">{{ row.id.substring(0, 12) }}</el-link>
         </template>
       </el-table-column>
-      <el-table-column
-        prop="name"
-        :label="t('common.name')"
-        min-width="200"
-        sortable="custom"
-      />
-      <el-table-column
-        prop="tag"
-        :label="t('image.tag')"
-        width="120"
-        sortable="custom"
-      >
+      <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }">
-          <el-tag size="small">{{ row.tag }}</el-tag>
+          <el-tag v-if="row.used_by && row.used_by.length > 0" type="success" size="small">已使用</el-tag>
+          <el-tag v-else type="info" size="small">未使用</el-tag>
         </template>
       </el-table-column>
-      <el-table-column
-        prop="size"
-        :label="t('common.size')"
-        width="120"
-        sortable="custom"
-        class-name="hidden-xs-only"
-      />
-      <el-table-column
-        prop="created"
-        :label="t('image.created')"
-        width="180"
-        sortable="custom"
-        class-name="hidden-md-and-down"
-      />
-      <el-table-column
-        prop="used_by_count"
-        label="Usage"
-        width="140"
-        align="center"
-      >
+      <el-table-column prop="tag" label="标签" min-width="200">
         <template #default="{ row }">
-          <el-tooltip v-if="row.used_by && row.used_by.length > 0" :content="row.used_by.join(', ')" placement="top">
-            <el-tag type="success" size="small">
-              In Use ({{ row.used_by_count }})
-            </el-tag>
-          </el-tooltip>
-          <el-tag v-else type="info" size="small">
-            Unused
-          </el-tag>
+          <el-tag size="small" style="background:#f0f5ff;border-color:#d6e4ff;color:#1d6fd8">{{ row.name }}:{{ row.tag }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column
-        :label="t('common.actions')"
-        width="120"
-        fixed="right"
-      >
+      <el-table-column prop="size" label="大小" width="120" sortable="custom" />
+      <el-table-column prop="created" label="时间" width="180" sortable="custom" />
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-popconfirm
-            :title="t('image.confirmRemove')"
-            :confirm-button-text="t('common.confirm')"
-            :cancel-button-text="t('common.cancel')"
-            @confirm="handleRemoveImage(row.id)"
-          >
+          <el-button link type="primary" size="small" @click="handleExport(row)">导出</el-button>
+          <el-popconfirm :title="'确定删除该镜像？'" @confirm="handleRemoveImage(row.id)">
             <template #reference>
-              <el-button type="danger" size="small" link>
-                <el-icon><Delete /></el-icon>
-                {{ t('common.delete') }}
-              </el-button>
+              <el-button type="danger" size="small" link>删除</el-button>
             </template>
           </el-popconfirm>
         </template>
@@ -137,27 +69,48 @@
       v-model:visible="showBuildDialog"
       @built="handleImageBuilt"
     />
+
+    <!-- 拉取镜像 -->
+    <el-dialog v-model="showPullDialog" title="拉取远程镜像" width="600px">
+      <el-input v-model="pullImage" placeholder="请输入镜像地址，如 nginx:latest" style="margin-bottom:12px" />
+      <el-progress v-if="pulling" :percentage="pullProgress" style="margin-bottom:12px" />
+      <template #footer>
+        <el-button @click="showPullDialog = false">取消</el-button>
+        <el-button type="primary" :loading="pulling" @click="handlePull">拉取镜像</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 导入镜像 -->
+    <el-dialog v-model="showImportDialog" title="导入镜像" width="600px">
+      <el-upload action="/api/images/import" :show-file-list="true" accept=".tar">
+        <el-button type="primary">选择 tar 文件上传</el-button>
+      </el-upload>
+      <template #footer>
+        <el-button @click="showImportDialog = false">取消</el-button>
+        <el-button type="primary" @click="showImportDialog = false">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { Refresh, Search, Delete, Box } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useImageStore, type SortField } from '@/stores/images'
-import { useI18n } from '@/composables/useI18n'
 import BuildImageDialog from '@/components/image/BuildImageDialog.vue'
+import request from '@/utils/request'
 
-const { t } = useI18n()
 const imageStore = useImageStore()
-
-// Local state for v-model bindings
 const searchInput = ref('')
 const currentPageValue = ref(imageStore.currentPage)
 const pageSizeValue = ref(imageStore.pageSize)
-
-// Dialog visibility
 const showBuildDialog = ref(false)
+const showPullDialog = ref(false)
+const showImportDialog = ref(false)
+const pullImage = ref('')
+const pulling = ref(false)
+const pullProgress = ref(0)
 
 // Sync local state with store
 watch(() => imageStore.searchQuery, (val) => { searchInput.value = val })
@@ -193,7 +146,7 @@ async function handleRefresh() {
 async function handleRemoveImage(id: string) {
   try {
     await imageStore.removeImage(id)
-    ElMessage.success(t('image.removeSuccess'))
+    ElMessage.success('删除成功')
   } catch {
     // Error is handled by request interceptor
   }
@@ -201,6 +154,41 @@ async function handleRemoveImage(id: string) {
 
 function handleImageBuilt() {
   imageStore.fetchImages(true)
+}
+
+async function handlePrune() {
+  try {
+    await ElMessageBox.confirm('将清理未使用的镜像缓存，是否继续？', '提示', { type: 'warning' })
+  } catch { return }
+  try {
+    await request.post('/images/prune')
+    ElMessage.success('清理完成')
+    imageStore.fetchImages(true)
+  } catch {}
+}
+
+async function handlePull() {
+  if (!pullImage.value) return
+  pulling.value = true
+  pullProgress.value = 0
+  try {
+    await request.post('/images/pull', { name: pullImage.value })
+    ElMessage.success('拉取完成')
+    showPullDialog.value = false
+    pullImage.value = ''
+    imageStore.fetchImages(true)
+  } catch (e: any) {
+    ElMessage.error('拉取失败：' + (e?.response?.data?.error || e?.message || ''))
+  } finally {
+    pulling.value = false
+  }
+}
+
+async function handleExport(row: any) {
+  try {
+    await ElMessageBox.confirm('导出镜像文件后可通过面板导入恢复，是否确认？', '提示')
+  } catch { return }
+  window.open('/api/images/export?id=' + row.id, '_blank')
 }
 
 // Fetch images on mount
