@@ -101,12 +101,12 @@ a:hover {
   --el-table-header-bg-color: var(--rp-header-bg);
 }
 .el-table .el-table__cell {
-  padding: 0;
+  padding: 0 !important;
 }
 .el-table .cell {
-  line-height: 1.7;
-  padding-top: 14px;
-  padding-bottom: 14px;
+  line-height: 1.7 !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
 }
 .el-table th.el-table__cell {
   padding: 0;
