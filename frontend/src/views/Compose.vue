@@ -79,7 +79,7 @@
     </el-drawer>
 
     <!-- 部署进度弹窗 -->
-    <el-dialog v-model="showDeployDialog" title="部署容器" :show-close="false" width="500px" :close-on-click-modal="false">
+    <el-dialog v-model="showDeployDialog" title="部署容器" width="500px" :close-on-click-modal="false">
       <div style="margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <span>拉取镜像</span><span>{{ pullStatus }}</span>
@@ -93,6 +93,9 @@
         <el-progress :percentage="deployProgress" />
       </div>
       <div v-if="deployDone" style="background:#f0f9eb;padding:12px;border-radius:4px;color:#67c23a">部署完成</div>
+      <template #footer>
+        <el-button type="primary" v-if="deployDone" @click="showDeployDialog = false">确定</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -226,7 +229,7 @@ async function handleDeploy() {
   deployStatus.value = '等待中...'
   deploying.value = true
   try {
-    await request.post('/compose/action', { name: currentProject.value, action: 'up' })
+    await request.post('/compose/action', { project: currentProject.value, action: 'up' })
     pullProgress.value = 100
     pullStatus.value = '完成'
     deployProgress.value = 100
