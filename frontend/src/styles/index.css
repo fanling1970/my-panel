@@ -100,6 +100,12 @@ a:hover {
   --el-table-tr-bg-color: var(--rp-card-bg);
   --el-table-header-bg-color: var(--rp-header-bg);
 }
+.el-table .el-table__cell {
+  padding: 14px 0;
+}
+.el-table th.el-table__cell {
+  padding: 12px 0;
+}
 
 /* Responsive Utility Classes */
 /* Hide on mobile (< 768px) */

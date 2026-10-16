@@ -173,6 +173,9 @@ async function handleAction(action: string) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ project: currentProject.value, action })
     })
+    if (action === 'down') {
+      projectRunning.value = false
+    }
     setTimeout(() => fetchProjects(), 1000)
   } catch {}
 }
