@@ -25,6 +25,8 @@
       <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" size="small">日志</el-button>
+          <el-button link type="primary" size="small">控制台</el-button>
           <el-popconfirm title="确定删除？" @confirm="handleDeleteProject(row.name)">
             <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
           </el-popconfirm>
@@ -65,16 +67,19 @@
     <!-- 任务管理 drawer -->
     <el-drawer v-model="showDetail" :title="'任务管理 ' + currentProject" size="60%" :close-on-click-modal="false">
       <h4 style="margin-bottom:12px">容器管理</h4>
-      <div style="display:flex;gap:12px;margin-bottom:24px">
-        <el-button type="primary" :loading="deploying" @click="handleDeploy">启动</el-button>
+      <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+        <el-button type="primary" :loading="deploying" @click="handleDeploy">{{ projectRunning ? '更新' : '启动' }}</el-button>
+        <el-button @click="handleAction('restart')">重启</el-button>
+        <el-button @click="handleAction('stop')">停止</el-button>
+        <el-button @click="handleAction('pause')">暂停</el-button>
         <el-button>控制台</el-button>
-        <el-button type="danger" plain>删除</el-button>
+        <el-button @click="handleAction('logs')">日志</el-button>
+        <el-button type="danger" plain @click="handleAction('down')">删除容器</el-button>
       </div>
       <h4 style="margin-bottom:12px">任务管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:12px">
         <el-button type="primary" @click="openEdit({name: currentProject})">编辑任务</el-button>
         <el-button @click="handleRefresh">刷新</el-button>
-        <el-button>同步</el-button>
       </div>
     </el-drawer>
 
@@ -110,6 +115,7 @@ const showCreate = ref(false)
 const showDetail = ref(false)
 const showRunDrawer = ref(false)
 const currentProject = ref('')
+const projectRunning = ref(false)
 const deploying = ref(false)
 const showDeployDialog = ref(false)
 const pullProgress = ref(0)
@@ -141,7 +147,15 @@ async function openEdit(row: any) {
 
 function openDetail(row: any) {
   currentProject.value = row.name
+  projectRunning.value = row.status === 'running'
   showDetail.value = true
+}
+
+async function handleAction(action: string) {
+  try {
+    await request.post('/compose/action', { project: currentProject.value, action })
+    fetchProjects()
+  } catch {}
 }
 
 function importLocal() {
@@ -235,6 +249,7 @@ async function handleDeploy() {
     deployProgress.value = 100
     deployStatus.value = '完成'
     deployDone.value = true
+    projectRunning.value = true
     fetchProjects()
   } catch {
     pullStatus.value = '失败'
