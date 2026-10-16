@@ -11,7 +11,9 @@
       <el-table-column label="名称" min-width="150">
         <template #default="{ row }"><el-link type="primary" @click="openDetail(row)">{{ row.name }}</el-link></template>
       </el-table-column>
-      <el-table-column label="描述" min-width="120"><template #default><span>-</span></template></el-table-column>
+      <el-table-column label="描述" min-width="120">
+        <template #default="{ row }"><span>{{ row.description || '-' }}</span></template>
+      </el-table-column>
       <el-table-column label="端口" min-width="150"><template #default><span>-</span></template></el-table-column>
       <el-table-column label="目录" width="80">
         <template #default="{ row }"><el-icon @click="openDir(row)" style="cursor:pointer"><Folder /></el-icon></template>
@@ -25,7 +27,7 @@
       <el-table-column label="创建时间" width="180"><template #default><span>-</span></template></el-table-column>
       <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="openCreate(row)">编辑</el-button>
+          <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
           <el-popconfirm title="确定删除？" @confirm="handleDeleteProject(row.name)">
             <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
           </el-popconfirm>
@@ -33,8 +35,8 @@
       </el-table-column>
     </el-table>
 
-    <!-- 创建项目 drawer -->
-    <el-drawer v-model="showCreate" title="Compose Yaml" size="60%">
+    <!-- 创建任务 drawer -->
+    <el-drawer v-model="showCreate" title="创建任务" size="60%">
       <h4 style="margin-bottom:8px">名称 <span style="color:#f56c6c">*</span></h4>
       <el-input v-model="form.name" placeholder="标识 Compose 创建的容器组" style="margin-bottom:16px" />
       <h4 style="margin-bottom:8px">描述</h4>
@@ -45,12 +47,21 @@
       </el-radio-group>
       <div style="display:flex;gap:12px;margin-bottom:12px">
         <el-button @click="importLocal">导入本地 Compose 文件</el-button>
-        <el-button @click="dockerRunMode">通过 docker run 命令</el-button>
+        <el-button @click="showRunDrawer = true">通过 docker run 命令</el-button>
       </div>
       <el-input v-model="form.yaml" type="textarea" :rows="12" placeholder="services:&#10;  xxx:&#10;    image: xxx" style="font-family:monospace" @input="autoName" />
       <template #footer>
         <el-button @click="showCreate = false">取消</el-button>
         <el-button type="primary" @click="handleCreate">确定</el-button>
+      </template>
+    </el-drawer>
+
+    <!-- docker run drawer -->
+    <el-drawer v-model="showRunDrawer" title="docker run 命令" size="60%">
+      <el-input v-model="runCmd" type="textarea" :rows="15" placeholder="请输入 docker run ... 命令" style="font-family:monospace" />
+      <template #footer>
+        <el-button @click="showRunDrawer = false">取消</el-button>
+        <el-button type="primary" @click="convertRun">确定</el-button>
       </template>
     </el-drawer>
 
@@ -64,7 +75,7 @@
       </div>
       <h4 style="margin-bottom:12px">任务管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:12px">
-        <el-button type="primary" @click="openCreate({name: currentProject})">编辑任务</el-button>
+        <el-button type="primary" @click="openEdit({name: currentProject.value})">编辑任务</el-button>
         <el-button>目录</el-button>
         <el-button @click="handleRefresh">刷新</el-button>
         <el-button>同步</el-button>
@@ -76,14 +87,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Folder } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 
 const projects = ref<any[]>([])
 const loading = ref(false)
 const showCreate = ref(false)
 const showDetail = ref(false)
+const showRunDrawer = ref(false)
 const currentProject = ref('')
 const deploying = ref(false)
+const runCmd = ref('')
 const form = ref({ name: '', description: '', source: 'text', yaml: '' })
 
 function autoName() {
@@ -91,10 +105,17 @@ function autoName() {
   if (m && m[1]) form.value.name = m[1]
 }
 
-function openCreate(row?: any) {
-  if (row) {
-    form.value.name = row.name
-  }
+function openCreate() {
+  form.value = { name: '', description: '', source: 'text', yaml: '' }
+  showCreate.value = true
+}
+
+async function openEdit(row: any) {
+  form.value = { name: row.name, description: '', source: 'text', yaml: '' }
+  try {
+    const res = await request.get('/compose/file?project=' + row.name)
+    form.value.yaml = res.data || ''
+  } catch {}
   showCreate.value = true
 }
 
@@ -121,10 +142,44 @@ function importLocal() {
   input.click()
 }
 
-function dockerRunMode() {
-  ElMessageBox.prompt('请输入 docker run 命令', 'docker run 命令', { inputType: 'textarea' })
-    .then(({ value }) => { form.value.yaml = value })
-    .catch(() => {})
+function convertRun() {
+  const cmd = runCmd.value
+  const name = cmd.match(/--name\s+(\S+)/)?.[1] || ''
+  const image = cmd.trim().split(/\s+/).pop() || ''
+  const ports: string[] = []
+  const envs: string[] = []
+  const volumes: string[] = []
+  const restart = cmd.match(/--restart\s+(\S+)/)?.[1] || ''
+
+  const portMatches = cmd.matchAll(/-p\s+(\S+)/g)
+  for (const m of portMatches) ports.push(`"${m[1]}"`)
+
+  const envMatches = cmd.matchAll(/-e\s+(\S+)/g)
+  for (const m of envMatches) envs.push(`${m[1]}`)
+
+  const volMatches = cmd.matchAll(/-v\s+(\S+)/g)
+  for (const m of volMatches) volumes.push(`- ${m[1]}`)
+
+  let yaml = 'services:\n  app:\n'
+  if (name) yaml += `    container_name: ${name}\n`
+  if (restart) yaml += `    restart: ${restart}\n`
+  yaml += `    image: ${image}\n`
+  if (ports.length) {
+    yaml += '    ports:\n'
+    ports.forEach(p => yaml += `      - ${p}\n`)
+  }
+  if (envs.length) {
+    yaml += '    environment:\n'
+    envs.forEach(e => yaml += `      - ${e}\n`)
+  }
+  if (volumes.length) {
+    yaml += '    volumes:\n'
+    volumes.forEach(v => yaml += `      ${v}\n`)
+  }
+  form.value.yaml = yaml
+  if (name) form.value.name = name
+  showRunDrawer.value = false
+  runCmd.value = ''
 }
 
 async function fetchProjects() {
@@ -145,7 +200,6 @@ async function handleCreate() {
     showCreate.value = false
     showDetail.value = true
     currentProject.value = form.value.name
-    form.value = { name: '', description: '', source: 'text', yaml: '' }
     fetchProjects()
   } catch {}
 }
@@ -167,7 +221,6 @@ async function handleDeleteProject(name: string) {
   } catch {}
 }
 
-import { ElMessage, ElMessageBox } from 'element-plus'
 onMounted(() => { fetchProjects() })
 </script>
 
