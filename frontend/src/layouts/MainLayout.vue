@@ -4,8 +4,8 @@ import { useRouter } from 'vue-router'
 import {
   Bell,
   Box,
+  Clock,
   Connection,
-  Cpu,
   Expand,
   Files,
   Fold,
@@ -15,10 +15,10 @@ import {
   Moon,
   OfficeBuilding,
   Picture,
-  Service,
   Setting,
   Sunny,
   SwitchButton,
+  Terminal,
   User,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -61,16 +61,17 @@ const themeIcon = computed(() => theme.value === 'dark' ? Sunny : Moon)
 const themeTooltip = computed(() => theme.value === 'dark' ? t('header.lightMode') : t('header.darkMode'))
 
 const menuItems = computed(() => [
-  { index: '/', icon: Monitor, title: t('sideNav.dashboard') },
-  { index: '/containers', icon: Box, title: t('sideNav.containers') },
-  { index: '/images', icon: Picture, title: t('sideNav.images') },
-  { index: '/networks', icon: Connection, title: t('sideNav.networks') },
-  { index: '/volumes', icon: FolderOpened, title: t('sideNav.volumes') },
-  { index: '/compose', icon: Files, title: t('sideNav.compose') },
-  { index: '/nodes', icon: Cpu, title: t('sideNav.nodes') },
-  { index: '/registry', icon: OfficeBuilding, title: t('sideNav.registry') },
-  { index: '/docker-config', icon: Setting, title: t('sideNav.dockerConfig') },
-  { index: '/settings/agent', icon: Service, title: t('sideNav.agentSettings') },
+  { index: '/', icon: Monitor, title: '概览' },
+  { index: '/containers', icon: Box, title: '容器管理' },
+  { index: '/images', icon: Picture, title: '镜像管理' },
+  { index: '/networks', icon: Connection, title: '网络管理' },
+  { index: '/volumes', icon: FolderOpened, title: '存储卷管理' },
+  { index: '/compose', icon: Files, title: 'Compose 管理' },
+  { index: '/registry', icon: OfficeBuilding, title: '仓库管理' },
+  { index: '/cron', icon: Clock, title: '计划任务' },
+  { index: '/files', icon: FolderOpened, title: '文件管理' },
+  { index: '/terminal', icon: Terminal, title: '终端' },
+  { index: '/docker-config', icon: Setting, title: 'Docker 配置' },
 ])
 
 function handleResize() {

@@ -7,7 +7,10 @@
         <el-button :loading="loading" @click="handleRefresh">刷新</el-button>
       </div>
     </div>
-    <el-table v-loading="loading" :data="projects" stripe style="width:100%">
+    <el-input v-model="search" placeholder="搜索" style="max-width:320px;margin-bottom:16px" clearable>
+      <template #prefix><el-icon><Search /></el-icon></template>
+    </el-input>
+    <el-table v-loading="loading" :data="filteredProjects" stripe style="width:100%">
       <el-table-column label="名称" min-width="150">
         <template #default="{ row }"><el-link type="primary" @click="openDetail(row)">{{ row.name }}</el-link></template>
       </el-table-column>
@@ -119,10 +122,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { Search } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const projects = ref<any[]>([])
+const search = ref('')
+const filteredProjects = computed(() => {
+  if (!search.value) return projects.value
+  return projects.value.filter(p => p.name.includes(search.value))
+})
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
