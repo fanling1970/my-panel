@@ -62,7 +62,7 @@ const form = ref({ name: '', description: '', source: 'text', yaml: '' })
 
 function autoName() {
   const m = form.value.yaml.match(/container_name:\s*(\S+)/)
-  if (m) form.value.name = m[1]
+  if (m && m[1]) form.value.name = m[1]
 }
 
 async function handleCreate() {
