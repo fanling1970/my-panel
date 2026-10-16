@@ -35,23 +35,23 @@
       <el-table-column prop="name" label="卷名称" min-width="200">
         <template #default="{ row }"><el-link type="primary">{{ row.name }}</el-link></template>
       </el-table-column>
-      <el-table-column prop="driver" label="驱动" width="100">
-        <template #default="{ row }"><el-tag size="small" type="primary">{{ row.driver }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="mountpoint" label="挂载点" min-width="250">
-        <template #default="{ row }"><span class="mountpoint">{{ row.mountpoint }}</span></template>
-      </el-table-column>
-      <el-table-column label="使用者" width="150">
+      <el-table-column label="容器名称" width="150">
         <template #default="{ row }">
           <span v-if="row.containers && row.containers.length > 0">{{ row.containers.join(', ') }}</span>
           <span v-else style="color:#909399">未使用</span>
         </template>
       </el-table-column>
-      <el-table-column prop="created" label="创建时间" width="180">
-        <template #default="{ row }"><span>{{ formatDate(row.created) }}</span></template>
+      <el-table-column prop="mountpoint" label="挂载点" min-width="250">
+        <template #default="{ row }"><span class="mountpoint">{{ row.mountpoint }}</span></template>
+      </el-table-column>
+      <el-table-column prop="driver" label="驱动" width="100">
+        <template #default="{ row }"><el-tag size="small" type="primary">{{ row.driver }}</el-tag></template>
       </el-table-column>
       <el-table-column label="大小" width="100">
         <template #default="{ row }"><span>{{ row.size || '-' }}</span></template>
+      </el-table-column>
+      <el-table-column prop="created" label="创建时间" width="180">
+        <template #default="{ row }"><span>{{ formatDate(row.created) }}</span></template>
       </el-table-column>
       <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
