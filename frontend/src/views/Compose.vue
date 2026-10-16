@@ -99,8 +99,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Folder } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 
 const projects = ref<any[]>([])
@@ -141,10 +139,6 @@ async function openEdit(row: any) {
 function openDetail(row: any) {
   currentProject.value = row.name
   showDetail.value = true
-}
-
-function openDir(row: any) {
-  window.open('/api/compose/file?project=' + row.name)
 }
 
 function importLocal() {
