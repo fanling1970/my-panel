@@ -22,17 +22,28 @@
         </template>
       </el-table-column>
       <el-table-column label="创建时间" width="180"><template #default><span>-</span></template></el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" size="small">日志</el-button>
-          <el-button link type="primary" size="small">控制台</el-button>
-          <el-popconfirm title="确定删除？" @confirm="handleDeleteProject(row.name)">
-            <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
-          </el-popconfirm>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="primary" size="small">日志</el-button>
+            <el-button link type="primary" size="small">控制台</el-button>
+            <el-popconfirm title="确定删除？" @confirm="handleDeleteProject(row.name)">
+              <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
+            </el-popconfirm>
+          </div>
         </template>
       </el-table-column>
     </el-table>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:20px">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="projects.length"
+        layout="total, sizes, prev, pager, next, jumper"
+      />
+    </div>
 
     <!-- 创建任务 drawer -->
     <el-drawer v-model="showCreate" title="创建任务" size="60%" :close-on-click-modal="false">
@@ -111,6 +122,8 @@ import request from '@/utils/request'
 
 const projects = ref<any[]>([])
 const loading = ref(false)
+const page = ref(1)
+const pageSize = ref(10)
 const showCreate = ref(false)
 const showDetail = ref(false)
 const showRunDrawer = ref(false)
@@ -153,8 +166,12 @@ function openDetail(row: any) {
 
 async function handleAction(action: string) {
   try {
-    await request.post('/compose/action', { project: currentProject.value, action })
-    fetchProjects()
+    await fetch('/api/compose/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project: currentProject.value, action })
+    })
+    setTimeout(() => fetchProjects(), 1000)
   } catch {}
 }
 
