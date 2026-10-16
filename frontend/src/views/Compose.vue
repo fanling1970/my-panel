@@ -75,7 +75,7 @@
       </div>
       <h4 style="margin-bottom:12px">任务管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:12px">
-        <el-button type="primary" @click="openEdit({name: currentProject.value})">编辑任务</el-button>
+        <el-button type="primary" @click="openEdit({name: currentProject})">编辑任务</el-button>
         <el-button>目录</el-button>
         <el-button @click="handleRefresh">刷新</el-button>
         <el-button>同步</el-button>
@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Folder } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 
 const projects = ref<any[]>([])
