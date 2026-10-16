@@ -65,7 +65,7 @@ async function handleCreate() {
   try {
     await request.post('/api/compose/create', {
       name: form.value.name,
-      yaml: form.value.yaml
+      content: form.value.yaml
     })
     showCreate.value = false
     form.value = { name: '', description: '', source: 'text', yaml: '' }
