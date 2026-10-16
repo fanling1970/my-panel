@@ -63,7 +63,7 @@ const form = ref({ name: '', description: '', source: 'text', yaml: '' })
 async function handleCreate() {
   if (!form.value.name) return
   try {
-    await request.post('/api/compose/create', {
+    await request.post('/compose/create', {
       name: form.value.name,
       content: form.value.yaml
     })
@@ -76,7 +76,7 @@ async function handleCreate() {
 async function fetchProjects() {
   loading.value = true
   try {
-    const res = await request.get('/api/compose/list')
+    const res = await request.get('/compose/list')
     projects.value = res.data || []
   } catch {}
   loading.value = false
@@ -86,7 +86,7 @@ function handleRefresh() { fetchProjects() }
 
 async function handleDeleteProject(name: string) {
   try {
-    await request.post('/api/compose/delete', { name })
+    await request.post('/compose/delete', { name })
     fetchProjects()
   } catch {}
 }
