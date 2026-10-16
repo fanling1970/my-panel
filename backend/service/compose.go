@@ -29,22 +29,33 @@ func NewComposeService(dr repository.IDockerRepository, fr repository.IFileRepos
 	}
 }
 
-// ListProjects 列出 Compose 项目（从 docker 容器 label 读取）
+// ListProjects 列出 Compose 项目（合并 docker label 和本地目录）
 func (s *ComposeService) ListProjects() ([]model.ComposeProject, error) {
 	ctx := context.Background()
+	projectSet := map[string]string{}
+
+	// 从 docker 容器 label 读取
 	containers, err := s.dockerRepo.ContainerList(ctx, types.ContainerListOptions{All: true})
-	if err != nil {
-		return nil, err
-	}
-	projectSet := map[string]bool{}
-	for _, c := range containers {
-		if p, ok := c.Labels["com.docker.compose.project"]; ok && p != "" {
-			projectSet[p] = true
+	if err == nil {
+		for _, c := range containers {
+			if p, ok := c.Labels["com.docker.compose.project"]; ok && p != "" {
+				projectSet[p] = "running"
+			}
 		}
 	}
+
+	// 从本地 compose_projects 目录读取
+	if localDirs, err := s.fileRepo.ListComposeProjects(); err == nil {
+		for _, name := range localDirs {
+			if _, exists := projectSet[name]; !exists {
+				projectSet[name] = "created"
+			}
+		}
+	}
+
 	result := []model.ComposeProject{}
-	for name := range projectSet {
-		result = append(result, model.ComposeProject{Name: name, Status: "running"})
+	for name, status := range projectSet {
+		result = append(result, model.ComposeProject{Name: name, Status: status})
 	}
 	return result, nil
 }

@@ -41,7 +41,7 @@
       <el-radio-group v-model="form.source" style="margin-bottom:16px">
         <el-radio value="text">文本 Yaml</el-radio>
       </el-radio-group>
-      <el-input v-model="form.yaml" type="textarea" :rows="15" placeholder="services:&#10;  xxx:&#10;    image: xxx" style="font-family:monospace" />
+      <el-input v-model="form.yaml" type="textarea" :rows="15" placeholder="services:&#10;  xxx:&#10;    image: xxx" style="font-family:monospace" @input="autoName" />
       <template #footer>
         <el-button @click="showCreate = false">取消</el-button>
         <el-button type="primary" @click="handleCreate">确定</el-button>
@@ -59,6 +59,11 @@ const projects = ref<any[]>([])
 const loading = ref(false)
 const showCreate = ref(false)
 const form = ref({ name: '', description: '', source: 'text', yaml: '' })
+
+function autoName() {
+  const m = form.value.yaml.match(/container_name:\s*(\S+)/)
+  if (m) form.value.name = m[1]
+}
 
 async function handleCreate() {
   if (!form.value.name) return
