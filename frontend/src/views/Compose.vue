@@ -22,9 +22,9 @@
         </template>
       </el-table-column>
       <el-table-column label="创建时间" width="180"><template #default><span>-</span></template></el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="display:flex;flex-direction:row;gap:4px">
             <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
             <el-button link type="primary" size="small">日志</el-button>
             <el-button link type="primary" size="small">控制台</el-button>
@@ -85,7 +85,9 @@
         <el-button @click="handleAction('pause')">暂停</el-button>
         <el-button>控制台</el-button>
         <el-button @click="handleAction('logs')">日志</el-button>
-        <el-button type="danger" plain @click="handleAction('down')">删除容器</el-button>
+        <el-popconfirm title="确认要删除容器？" @confirm="handleAction('down')">
+          <template #reference><el-button type="danger" plain>删除容器</el-button></template>
+        </el-popconfirm>
       </div>
       <h4 style="margin-bottom:12px">任务管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:12px">
