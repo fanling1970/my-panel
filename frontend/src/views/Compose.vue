@@ -15,9 +15,6 @@
         <template #default="{ row }"><span>{{ row.description || '-' }}</span></template>
       </el-table-column>
       <el-table-column label="端口" min-width="150"><template #default><span>-</span></template></el-table-column>
-      <el-table-column label="目录" width="80">
-        <template #default="{ row }"><el-icon @click="openDir(row)" style="cursor:pointer"><Folder /></el-icon></template>
-      </el-table-column>
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
           <el-tag v-if="row.status === 'running'" type="success" size="small" effect="plain">运行中</el-tag>
@@ -36,7 +33,7 @@
     </el-table>
 
     <!-- 创建任务 drawer -->
-    <el-drawer v-model="showCreate" title="创建任务" size="60%">
+    <el-drawer v-model="showCreate" title="创建任务" size="60%" :close-on-click-modal="false">
       <h4 style="margin-bottom:8px">名称 <span style="color:#f56c6c">*</span></h4>
       <el-input v-model="form.name" placeholder="标识 Compose 创建的容器组" style="margin-bottom:16px" />
       <h4 style="margin-bottom:8px">描述</h4>
@@ -57,7 +54,7 @@
     </el-drawer>
 
     <!-- docker run drawer -->
-    <el-drawer v-model="showRunDrawer" title="docker run 命令" size="60%">
+    <el-drawer v-model="showRunDrawer" title="docker run 命令" size="60%" :close-on-click-modal="false">
       <el-input v-model="runCmd" type="textarea" :rows="15" placeholder="请输入 docker run ... 命令" style="font-family:monospace" />
       <template #footer>
         <el-button @click="showRunDrawer = false">取消</el-button>
@@ -66,7 +63,7 @@
     </el-drawer>
 
     <!-- 任务管理 drawer -->
-    <el-drawer v-model="showDetail" :title="'任务管理 ' + currentProject" size="60%">
+    <el-drawer v-model="showDetail" :title="'任务管理 ' + currentProject" size="60%" :close-on-click-modal="false">
       <h4 style="margin-bottom:12px">容器管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:24px">
         <el-button type="primary" :loading="deploying" @click="handleDeploy">启动</el-button>
@@ -76,11 +73,27 @@
       <h4 style="margin-bottom:12px">任务管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:12px">
         <el-button type="primary" @click="openEdit({name: currentProject})">编辑任务</el-button>
-        <el-button>目录</el-button>
         <el-button @click="handleRefresh">刷新</el-button>
         <el-button>同步</el-button>
       </div>
     </el-drawer>
+
+    <!-- 部署进度弹窗 -->
+    <el-dialog v-model="showDeployDialog" title="部署容器" :show-close="false" width="500px" :close-on-click-modal="false">
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span>拉取镜像</span><span>{{ pullStatus }}</span>
+        </div>
+        <el-progress :percentage="pullProgress" />
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span>部署容器</span><span>{{ deployStatus }}</span>
+        </div>
+        <el-progress :percentage="deployProgress" />
+      </div>
+      <div v-if="deployDone" style="background:#f0f9eb;padding:12px;border-radius:4px;color:#67c23a">部署完成</div>
+    </el-dialog>
   </div>
 </template>
 
@@ -97,6 +110,12 @@ const showDetail = ref(false)
 const showRunDrawer = ref(false)
 const currentProject = ref('')
 const deploying = ref(false)
+const showDeployDialog = ref(false)
+const pullProgress = ref(0)
+const deployProgress = ref(0)
+const pullStatus = ref('等待中')
+const deployStatus = ref('等待中')
+const deployDone = ref(false)
 const runCmd = ref('')
 const form = ref({ name: '', description: '', source: 'text', yaml: '' })
 
@@ -205,12 +224,25 @@ async function handleCreate() {
 }
 
 async function handleDeploy() {
+  showDeployDialog.value = true
+  deployDone.value = false
+  pullProgress.value = 0
+  deployProgress.value = 0
+  pullStatus.value = '拉取中...'
+  deployStatus.value = '等待中...'
   deploying.value = true
   try {
     await request.post('/compose/action', { name: currentProject.value, action: 'up' })
-    ElMessage.success('部署完成')
+    pullProgress.value = 100
+    pullStatus.value = '完成'
+    deployProgress.value = 100
+    deployStatus.value = '完成'
+    deployDone.value = true
     fetchProjects()
-  } catch {}
+  } catch {
+    pullStatus.value = '失败'
+    deployStatus.value = '失败'
+  }
   deploying.value = false
 }
 
