@@ -70,7 +70,7 @@
       <el-input v-model="form.script" type="textarea" :rows="8" style="font-family:monospace;margin-bottom:16px" />
       <template #footer>
         <el-button @click="showCreate = false">取消</el-button>
-        <el-button type="primary" @click="showCreate = false">确定</el-button>
+        <el-button type="primary" @click="saveTask">确定</el-button>
       </template>
     </el-drawer>
 
@@ -82,6 +82,10 @@
         <el-radio-button value="container">容器</el-radio-button>
         <el-radio-button value="compose">Compose项目</el-radio-button>
       </el-radio-group>
+      <h4 style="margin-bottom:8px">选择容器</h4>
+      <el-select v-model="timerForm.target" placeholder="请选择容器" style="width:100%;margin-bottom:16px">
+        <el-option v-for="c in containers" :key="c" :label="c" :value="c" />
+      </el-select>
       <h4 style="margin-bottom:8px">操作类型</h4>
       <el-radio-group v-model="timerForm.action" style="margin-bottom:16px">
         <el-radio-button value="start">启动</el-radio-button>
@@ -101,14 +105,15 @@
       <el-switch v-model="timerForm.enabled" style="margin-bottom:16px" />
       <template #footer>
         <el-button @click="showTimer = false">取消</el-button>
-        <el-button type="primary" @click="showTimer = false">确定</el-button>
+        <el-button type="primary" @click="saveTimer">确定</el-button>
       </template>
     </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import request from '@/utils/request'
 
 const tab = ref('task')
 const tasks = ref<any[]>([])
@@ -116,5 +121,34 @@ const timers = ref<any[]>([])
 const showCreate = ref(false)
 const showTimer = ref(false)
 const form = ref({ name: '', trigger: 'period', period: 'week', hour: '', minute: '', shell: 'sh', script: '' })
-const timerForm = ref({ name: '', targetType: 'container', action: 'start', freq: 'day', time: '', enabled: true })
+const timerForm = ref({ name: '', targetType: 'container', target: '', action: 'start', freq: 'day', time: '', enabled: true })
+const containers = ref<string[]>([])
+
+async function loadContainers() {
+  try {
+    const res = await request.get('/containers/list')
+    containers.value = (res.data || []).map((c: any) => c.Names?.[0]?.replace('/', '') || c.Name || '')
+  } catch {}
+}
+
+function saveTask() {
+  tasks.value.push({ name: form.value.name, container: '-', schedule: '-', next: '-' })
+  showCreate.value = false
+  form.value = { name: '', trigger: 'period', period: 'week', hour: '', minute: '', shell: 'sh', script: '' }
+}
+
+function saveTimer() {
+  timers.value.push({
+    name: timerForm.value.name,
+    target: timerForm.value.target,
+    type: timerForm.value.action,
+    cron: '-',
+    rule: '-',
+    next: '-',
+    enabled: timerForm.value.enabled
+  })
+  showTimer.value = false
+}
+
+onMounted(loadContainers)
 </script>
