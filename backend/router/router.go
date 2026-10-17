@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -138,6 +139,10 @@ func (r *Router) Register() {
 		apiAuth.GET("/fs/read", r.handleFsRead)
 		apiAuth.POST("/fs/write", r.handleFsWrite)
 		apiAuth.POST("/fs/delete", r.handleFsDelete)
+		apiAuth.POST("/fs/mkdir", r.handleFsMkdir)
+		apiAuth.POST("/fs/touch", r.handleFsTouch)
+		apiAuth.POST("/fs/chmod", r.handleFsChmod)
+		apiAuth.POST("/fs/upload", r.handleFsUpload)
 		apiAuth.POST("/compose/action", r.handleComposeAction)
 		apiAuth.POST("/compose/delete", r.handleComposeDelete)
 		apiAuth.GET("/compose/status", r.handleComposeStatus)
@@ -2293,7 +2298,77 @@ func (r *Router) handleFsDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-func (r *Router) handleComposeStatus(c *gin.Context) {
+func (r *Router) handleFsMkdir(c *gin.Context) {
+	var req struct {
+		Path string `json:"path"`
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	full := req.Path + "/" + req.Name
+	if err := os.Mkdir(full, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleFsTouch(c *gin.Context) {
+	var req struct {
+		Path string `json:"path"`
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	full := req.Path + "/" + req.Name
+	if _, err := os.Stat(full); os.IsNotExist(err) {
+		if err := os.WriteFile(full, []byte(""), 0644); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleFsChmod(c *gin.Context) {
+	var req struct {
+		Path string `json:"path"`
+		Mode string `json:"mode"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	mode, err := strconv.ParseUint(req.Mode, 8, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "权限格式错误"})
+		return
+	}
+	if err := os.Chmod(req.Path, os.FileMode(mode)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleFsUpload(c *gin.Context) {
+	path := c.PostForm("path")
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	dst := path + "/" + file.Filename
+	if err := c.SaveUploadedFile(file, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
 	name := c.Query("project")
 	status, err := r.app.ComposeService.FetchProjectStatus(name)
 	if err != nil {

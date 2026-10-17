@@ -3,13 +3,24 @@
     <div class="page-header">
       <h2>文件管理</h2>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
       <el-button @click="goBack">←</el-button>
       <el-button @click="goHome">🏠</el-button>
       <span style="color:#606266">{{ currentPath }}</span>
       <el-button @click="loadFiles">刷新</el-button>
     </div>
-    <el-table v-loading="loading" :data="files" stripe style="width:100%" @row-dblclick="openRow">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <el-button size="small" @click="newFile">新建文件</el-button>
+      <el-button size="small" @click="newFolder">新建文件夹</el-button>
+      <el-button size="small" @click="triggerUpload">上传</el-button>
+      <el-button size="small" :disabled="!selected.length" @click="downloadSelected">下载</el-button>
+      <el-button size="small" :disabled="!selected.length" @click="chmodSelected">编辑权限</el-button>
+      <el-button size="small" type="danger" plain :disabled="!selected.length" @click="deleteSelected">删除</el-button>
+      <el-input v-model="search" placeholder="搜索" size="small" style="max-width:200px;margin-left:auto" clearable />
+    </div>
+    <input ref="fileInput" type="file" style="display:none" @change="uploadFile" />
+    <el-table v-loading="loading" :data="filteredFiles" stripe style="width:100%" @selection-change="onSelect" @row-dblclick="openRow">
+      <el-table-column type="selection" width="40" />
       <el-table-column label="名称" min-width="200">
         <template #default="{ row }">
           <el-link type="primary" @click="openRow(row)">
@@ -31,15 +42,13 @@
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="openRow(row)">打开</el-button>
-          <el-button link type="primary" size="small" @click="downloadFile(row)">下载</el-button>
-          <el-popconfirm title="确定删除？" @confirm="deleteFile(row)">
+          <el-popconfirm title="确定删除？" @confirm="deleteSingle(row)">
             <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
           </el-popconfirm>
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 编辑文件 drawer -->
     <el-drawer v-model="showEditor" :title="'编辑 - ' + editingPath" size="80%" :close-on-click-modal="false">
       <el-input v-model="editingContent" type="textarea" :rows="25" style="font-family:monospace" />
       <template #footer>
@@ -51,17 +60,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Folder, Document } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 
 const currentPath = ref('/host')
 const files = ref<any[]>([])
+const selected = ref<any[]>([])
+const search = ref('')
 const loading = ref(false)
 const showEditor = ref(false)
 const editingPath = ref('')
 const editingContent = ref('')
+const fileInput = ref<HTMLInputElement>()
+
+const filteredFiles = computed(() => {
+  if (!search.value) return files.value
+  return files.value.filter(f => f.name.includes(search.value))
+})
+
 async function loadFiles() {
   loading.value = true
   try {
@@ -73,8 +91,10 @@ async function loadFiles() {
   loading.value = false
 }
 
+function onSelect(rows: any[]) { selected.value = rows }
+
 function openRow(row: any) {
-  const newPath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name
+  const newPath = joinPath(row.name)
   if (row.isDir) {
     currentPath.value = newPath
     loadFiles()
@@ -85,13 +105,15 @@ function openRow(row: any) {
   }
 }
 
+function joinPath(name: string) {
+  return currentPath.value === '/' ? '/' + name : currentPath.value + '/' + name
+}
+
 async function readFile(path: string) {
   try {
     const res = await request.get('/fs/read', { params: { path } })
     editingContent.value = res.data.content || ''
-  } catch {
-    ElMessage.error('读取失败')
-  }
+  } catch { ElMessage.error('读取失败') }
 }
 
 async function saveFile() {
@@ -99,13 +121,11 @@ async function saveFile() {
     await request.post('/fs/write', { path: editingPath.value, content: editingContent.value })
     ElMessage.success('保存成功')
     showEditor.value = false
-  } catch {
-    ElMessage.error('保存失败')
-  }
+  } catch { ElMessage.error('保存失败') }
 }
 
 function goBack() {
-  if (currentPath.value === '/') return
+  if (currentPath.value === '/' || currentPath.value === '/host') return
   const parts = currentPath.value.split('/').filter(Boolean)
   parts.pop()
   currentPath.value = '/' + parts.join('/')
@@ -113,24 +133,74 @@ function goBack() {
 }
 
 function goHome() {
-  currentPath.value = '/'
+  currentPath.value = '/host'
   loadFiles()
 }
 
-function downloadFile(row: any) {
-  const path = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name
-  window.open('/api/fs/read?path=' + encodeURIComponent(path))
+async function newFile() {
+  const { value } = await ElMessageBox.prompt('文件名', '新建文件')
+  try {
+    await request.post('/fs/touch', { path: currentPath.value, name: value })
+    loadFiles()
+  } catch { ElMessage.error('创建失败') }
 }
 
-async function deleteFile(row: any) {
-  const path = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name
+async function newFolder() {
+  const { value } = await ElMessageBox.prompt('文件夹名', '新建文件夹')
+  try {
+    await request.post('/fs/mkdir', { path: currentPath.value, name: value })
+    loadFiles()
+  } catch { ElMessage.error('创建失败') }
+}
+
+function triggerUpload() { fileInput.value?.click() }
+
+async function uploadFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (!input.files?.length) return
+  const fd = new FormData()
+  fd.append('path', currentPath.value)
+  fd.append('file', input.files[0])
+  try {
+    await request.post('/fs/upload', fd)
+    ElMessage.success('上传成功')
+    loadFiles()
+  } catch { ElMessage.error('上传失败') }
+  input.value = ''
+}
+
+async function deleteSingle(row: any) {
+  const path = joinPath(row.name)
   try {
     await request.post('/fs/delete', { path })
     ElMessage.success('删除成功')
     loadFiles()
-  } catch {
-    ElMessage.error('删除失败')
+  } catch { ElMessage.error('删除失败') }
+}
+
+async function deleteSelected() {
+  for (const row of selected.value) {
+    await request.post('/fs/delete', { path: joinPath(row.name) }).catch(() => {})
   }
+  ElMessage.success('删除成功')
+  loadFiles()
+}
+
+function downloadSelected() {
+  for (const row of selected.value) {
+    if (!row.isDir) {
+      window.open('/api/fs/read?path=' + encodeURIComponent(joinPath(row.name)))
+    }
+  }
+}
+
+async function chmodSelected() {
+  const { value } = await ElMessageBox.prompt('权限 (如 755)', '编辑权限')
+  for (const row of selected.value) {
+    await request.post('/fs/chmod', { path: joinPath(row.name), mode: value }).catch(() => {})
+  }
+  ElMessage.success('权限已修改')
+  loadFiles()
 }
 
 function formatSize(size: number) {
@@ -141,12 +211,3 @@ function formatSize(size: number) {
 
 onMounted(loadFiles)
 </script>
-
-<style scoped>
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-</style>
