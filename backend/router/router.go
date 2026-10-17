@@ -2224,7 +2224,11 @@ func (r *Router) handleComposeDelete(c *gin.Context) {
 func (r *Router) handleFsList(c *gin.Context) {
 	dir := c.Query("path")
 	if dir == "" {
-		dir = "/"
+		if _, err := os.Stat("/host"); err == nil {
+			dir = "/host"
+		} else {
+			dir = "/"
+		}
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {

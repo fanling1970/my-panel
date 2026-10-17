@@ -62,7 +62,6 @@ const loading = ref(false)
 const showEditor = ref(false)
 const editingPath = ref('')
 const editingContent = ref('')
-
 async function loadFiles() {
   loading.value = true
   try {
