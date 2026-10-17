@@ -158,9 +158,11 @@ function triggerUpload() { fileInput.value?.click() }
 async function uploadFile(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
+  const file = input.files[0]
+  if (!file) return
   const fd = new FormData()
   fd.append('path', currentPath.value)
-  fd.append('file', input.files[0])
+  fd.append('file', file)
   try {
     await request.post('/fs/upload', fd)
     ElMessage.success('上传成功')
