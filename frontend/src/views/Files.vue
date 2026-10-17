@@ -56,7 +56,7 @@ import { Folder, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 
-const currentPath = ref('/')
+const currentPath = ref('/host')
 const files = ref<any[]>([])
 const loading = ref(false)
 const showEditor = ref(false)
