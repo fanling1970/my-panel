@@ -1,13 +1,18 @@
 <template>
   <div class="files-page">
     <div class="page-header">
-      <h2>文件管理</h2>
+      <h2 style="margin-bottom:20px">文件管理</h2>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;padding:10px 16px;background:#f5f7fa;border-radius:6px">
       <el-button @click="goBack">←</el-button>
       <el-button @click="goHome">🏠</el-button>
-      <span style="color:#606266">{{ currentPath }}</span>
-      <el-button @click="loadFiles">刷新</el-button>
+      <el-breadcrumb separator="/">
+        <el-breadcrumb-item :to="{ path: '/host' }" @click="goHome">host</el-breadcrumb-item>
+        <el-breadcrumb-item v-for="(seg, i) in pathSegments" :key="i">
+          <el-link type="primary" @click="goToSegment(i)">{{ seg }}</el-link>
+        </el-breadcrumb-item>
+      </el-breadcrumb>
+      <el-button @click="loadFiles" style="margin-left:auto">刷新</el-button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <el-button size="small" @click="newFile">新建文件</el-button>
@@ -124,9 +129,24 @@ const permMode = computed(() => {
 })
 
 const filteredFiles = computed(() => {
-  if (!search.value) return files.value
-  return files.value.filter(f => f.name.includes(search.value))
+  let arr = files.value
+  if (search.value) arr = arr.filter(f => f.name.includes(search.value))
+  return [...arr].sort((a, b) => {
+    if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+    return a.name.localeCompare(b.name)
+  })
 })
+
+const pathSegments = computed(() => {
+  if (currentPath.value === '/host') return []
+  return currentPath.value.replace('/host', '').split('/').filter(Boolean)
+})
+
+function goToSegment(i: number) {
+  const segs = pathSegments.value.slice(0, i + 1)
+  currentPath.value = '/host/' + segs.join('/')
+  loadFiles()
+}
 
 async function loadFiles() {
   loading.value = true
