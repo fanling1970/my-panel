@@ -9,13 +9,19 @@
       <span style="color:#606266">{{ currentPath }}</span>
       <el-button @click="loadFiles">刷新</el-button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <el-button size="small" @click="newFile">新建文件</el-button>
       <el-button size="small" @click="newFolder">新建文件夹</el-button>
       <el-button size="small" @click="triggerUpload">上传</el-button>
+      <el-button size="small" :disabled="!selected.length" @click="startCopy">复制</el-button>
+      <el-button size="small" :disabled="!selected.length" @click="startMove">移动</el-button>
       <el-button size="small" :disabled="!selected.length" @click="downloadSelected">下载</el-button>
-      <el-button size="small" :disabled="!selected.length" @click="chmodSelected">编辑权限</el-button>
+      <el-button size="small" :disabled="!selected.length" @click="showChmod = true">编辑权限</el-button>
       <el-button size="small" type="danger" plain :disabled="!selected.length" @click="deleteSelected">删除</el-button>
+      <template v-if="clipboard.length">
+        <el-button size="small" type="primary" @click="paste">粘贴({{ clipboard.length }})</el-button>
+        <el-button size="small" type="danger" circle @click="clipboard = []">✕</el-button>
+      </template>
       <el-input v-model="search" placeholder="搜索" size="small" style="max-width:200px;margin-left:auto" clearable />
     </div>
     <input ref="fileInput" type="file" style="display:none" @change="uploadFile" />
@@ -24,8 +30,8 @@
       <el-table-column label="名称" min-width="200">
         <template #default="{ row }">
           <el-link type="primary" @click="openRow(row)">
-            <el-icon v-if="row.isDir" style="margin-right:4px"><Folder /></el-icon>
-            <el-icon v-else style="margin-right:4px"><Document /></el-icon>
+            <span v-if="row.isDir" style="margin-right:4px">📁</span>
+            <span v-else style="margin-right:4px">📄</span>
             {{ row.name }}
           </el-link>
         </template>
@@ -39,9 +45,10 @@
       <el-table-column label="修改时间" width="180">
         <template #default="{ row }">{{ row.modTime }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="openRow(row)">打开</el-button>
+          <el-button link type="primary" size="small" @click="renameRow(row)">重命名</el-button>
           <el-popconfirm title="确定删除？" @confirm="deleteSingle(row)">
             <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
           </el-popconfirm>
@@ -49,19 +56,46 @@
       </el-table-column>
     </el-table>
 
-    <el-drawer v-model="showEditor" :title="'编辑 - ' + editingPath" size="80%" :close-on-click-modal="false">
+    <el-drawer v-model="showEditor" :title="'编辑 - ' + editingPath" size="50%" :close-on-click-modal="false">
       <el-input v-model="editingContent" type="textarea" :rows="25" style="font-family:monospace" />
       <template #footer>
         <el-button @click="showEditor = false">取消</el-button>
         <el-button type="primary" @click="saveFile">保存</el-button>
       </template>
     </el-drawer>
+
+    <el-dialog v-model="showChmod" title="编辑权限" width="400px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>所有者</div>
+        <div style="display:flex;gap:16px;margin-bottom:8px">
+          <el-checkbox v-model="perm.ownerRead">读取</el-checkbox>
+          <el-checkbox v-model="perm.ownerWrite">写入</el-checkbox>
+          <el-checkbox v-model="perm.ownerExec">可执行</el-checkbox>
+        </div>
+        <div>用户组</div>
+        <div style="display:flex;gap:16px;margin-bottom:8px">
+          <el-checkbox v-model="perm.groupRead">读取</el-checkbox>
+          <el-checkbox v-model="perm.groupWrite">写入</el-checkbox>
+          <el-checkbox v-model="perm.groupExec">可执行</el-checkbox>
+        </div>
+        <div>公共</div>
+        <div style="display:flex;gap:16px;margin-bottom:8px">
+          <el-checkbox v-model="perm.otherRead">读取</el-checkbox>
+          <el-checkbox v-model="perm.otherWrite">写入</el-checkbox>
+          <el-checkbox v-model="perm.otherExec">可执行</el-checkbox>
+        </div>
+        <div style="color:#606266">当前权限：{{ permMode }}</div>
+      </div>
+      <template #footer>
+        <el-button @click="showChmod = false">取消</el-button>
+        <el-button type="primary" @click="applyChmod">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Folder, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 
@@ -74,6 +108,20 @@ const showEditor = ref(false)
 const editingPath = ref('')
 const editingContent = ref('')
 const fileInput = ref<HTMLInputElement>()
+const clipboard = ref<{ src: string; isCopy: boolean }[]>([])
+const showChmod = ref(false)
+const perm = ref({
+  ownerRead: true, ownerWrite: true, ownerExec: false,
+  groupRead: true, groupWrite: false, groupExec: false,
+  otherRead: true, otherWrite: false, otherExec: false
+})
+
+const permMode = computed(() => {
+  const o = (perm.value.ownerRead ? 4 : 0) + (perm.value.ownerWrite ? 2 : 0) + (perm.value.ownerExec ? 1 : 0)
+  const g = (perm.value.groupRead ? 4 : 0) + (perm.value.groupWrite ? 2 : 0) + (perm.value.groupExec ? 1 : 0)
+  const p = (perm.value.otherRead ? 4 : 0) + (perm.value.otherWrite ? 2 : 0) + (perm.value.otherExec ? 1 : 0)
+  return '' + o + g + p
+})
 
 const filteredFiles = computed(() => {
   if (!search.value) return files.value
@@ -196,12 +244,43 @@ function downloadSelected() {
   }
 }
 
-async function chmodSelected() {
-  const { value } = await ElMessageBox.prompt('权限 (如 755)', '编辑权限')
+function startCopy() {
+  clipboard.value = selected.value.map(r => ({ src: joinPath(r.name), isCopy: true }))
+}
+
+function startMove() {
+  clipboard.value = selected.value.map(r => ({ src: joinPath(r.name), isCopy: false }))
+}
+
+async function paste() {
+  for (const item of clipboard.value) {
+    const name = item.src.split('/').pop()
+    const dst = currentPath.value + '/' + name
+    if (item.isCopy) {
+      await request.post('/fs/copy', { src: item.src, dst }).catch(() => {})
+    } else {
+      await request.post('/fs/move', { src: item.src, dst }).catch(() => {})
+    }
+  }
+  ElMessage.success(clipboard.value[0]?.isCopy ? '复制成功' : '移动成功')
+  clipboard.value = []
+  loadFiles()
+}
+
+async function renameRow(row: any) {
+  const { value } = await ElMessageBox.prompt('新名称', '重命名', { inputValue: row.name })
+  try {
+    await request.post('/fs/rename', { path: joinPath(row.name), name: value })
+    loadFiles()
+  } catch { ElMessage.error('重命名失败') }
+}
+
+async function applyChmod() {
   for (const row of selected.value) {
-    await request.post('/fs/chmod', { path: joinPath(row.name), mode: value }).catch(() => {})
+    await request.post('/fs/chmod', { path: joinPath(row.name), mode: permMode.value }).catch(() => {})
   }
   ElMessage.success('权限已修改')
+  showChmod.value = false
   loadFiles()
 }
 

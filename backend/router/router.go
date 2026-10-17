@@ -143,6 +143,9 @@ func (r *Router) Register() {
 		apiAuth.POST("/fs/touch", r.handleFsTouch)
 		apiAuth.POST("/fs/chmod", r.handleFsChmod)
 		apiAuth.POST("/fs/upload", r.handleFsUpload)
+		apiAuth.POST("/fs/copy", r.handleFsCopy)
+		apiAuth.POST("/fs/move", r.handleFsMove)
+		apiAuth.POST("/fs/rename", r.handleFsRename)
 		apiAuth.POST("/compose/action", r.handleComposeAction)
 		apiAuth.POST("/compose/delete", r.handleComposeDelete)
 		apiAuth.GET("/compose/status", r.handleComposeStatus)
@@ -2370,7 +2373,86 @@ func (r *Router) handleFsUpload(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-func (r *Router) handleComposeStatus(c *gin.Context) {
+func copyDir(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil { return err }
+	if err := os.MkdirAll(dst, 0755); err != nil { return err }
+	for _, e := range entries {
+		s := src + "/" + e.Name()
+		d := dst + "/" + e.Name()
+		if e.IsDir() {
+			if err := copyDir(s, d); err != nil { return err }
+		} else {
+			data, err := os.ReadFile(s)
+			if err != nil { return err }
+			if err := os.WriteFile(d, data, 0644); err != nil { return err }
+		}
+	}
+	return nil
+}
+
+func (r *Router) handleFsCopy(c *gin.Context) {
+	var req struct {
+		Src string `json:"src"`
+		Dst string `json:"dst"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	info, _ := os.Stat(req.Src)
+	if info != nil && info.IsDir() {
+		if err := copyDir(req.Src, req.Dst); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		data, err := os.ReadFile(req.Src)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := os.WriteFile(req.Dst, data, 0644); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleFsMove(c *gin.Context) {
+	var req struct {
+		Src string `json:"src"`
+		Dst string `json:"dst"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := os.Rename(req.Src, req.Dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleFsRename(c *gin.Context) {
+	var req struct {
+		Path string `json:"path"`
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	dir := req.Path[:strings.LastIndex(req.Path, "/")]
+	newPath := dir + "/" + req.Name
+	if err := os.Rename(req.Path, newPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
 	name := c.Query("project")
 	status, err := r.app.ComposeService.FetchProjectStatus(name)
 	if err != nil {
