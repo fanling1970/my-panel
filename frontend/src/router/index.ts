@@ -32,6 +32,7 @@ const router = createRouter({
         { path: 'images', name: 'images', component: () => import('@/views/Images.vue'), meta: { title: 'Images' } },
         { path: 'networks', name: 'networks', component: () => import('@/views/Networks.vue'), meta: { title: 'Networks' } },
         { path: 'compose', name: 'compose', component: () => import('@/views/Compose.vue'), meta: { title: 'Compose' } },
+        { path: 'files', name: 'files', component: () => import('@/views/Files.vue'), meta: { title: 'Files' } },
         { path: 'nodes', name: 'nodes', component: () => import('@/views/Nodes.vue'), meta: { title: 'Nodes' } },
         { path: 'volumes', name: 'volumes', component: () => import('@/views/Volumes.vue'), meta: { title: 'Volumes' } },
         { path: 'registry', name: 'registry', component: () => import('@/views/Registry.vue'), meta: { title: 'Registry' } },

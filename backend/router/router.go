@@ -132,6 +132,12 @@ func (r *Router) Register() {
 		apiAuth.POST("/compose/create", r.handleComposeCreate)
 		apiAuth.GET("/compose/file", r.handleComposeFile)
 		apiAuth.POST("/compose/file", r.handleComposeFile)
+
+		// File manager routes
+		apiAuth.GET("/fs/list", r.handleFsList)
+		apiAuth.GET("/fs/read", r.handleFsRead)
+		apiAuth.POST("/fs/write", r.handleFsWrite)
+		apiAuth.POST("/fs/delete", r.handleFsDelete)
 		apiAuth.POST("/compose/action", r.handleComposeAction)
 		apiAuth.POST("/compose/delete", r.handleComposeDelete)
 		apiAuth.GET("/compose/status", r.handleComposeStatus)
@@ -2215,7 +2221,73 @@ func (r *Router) handleComposeDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-func (r *Router) handleComposeStatus(c *gin.Context) {
+func (r *Router) handleFsList(c *gin.Context) {
+	dir := c.Query("path")
+	if dir == "" {
+		dir = "/"
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	var files []gin.H
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		files = append(files, gin.H{
+			"name":  e.Name(),
+			"isDir": e.IsDir(),
+			"size":  info.Size(),
+			"mode":  fmt.Sprintf("%o", info.Mode().Perm()),
+			"modTime": info.ModTime().Format("2006-01-02 15:04:05"),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"path": dir, "files": files})
+}
+
+func (r *Router) handleFsRead(c *gin.Context) {
+	path := c.Query("path")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"content": string(data)})
+}
+
+func (r *Router) handleFsWrite(c *gin.Context) {
+	var req struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := os.WriteFile(req.Path, []byte(req.Content), 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleFsDelete(c *gin.Context) {
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := os.RemoveAll(req.Path); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
 	name := c.Query("project")
 	status, err := r.app.ComposeService.FetchProjectStatus(name)
 	if err != nil {
