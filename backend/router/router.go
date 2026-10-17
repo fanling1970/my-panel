@@ -2288,6 +2288,8 @@ func (r *Router) handleFsDelete(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
+
+func (r *Router) handleComposeStatus(c *gin.Context) {
 	name := c.Query("project")
 	status, err := r.app.ComposeService.FetchProjectStatus(name)
 	if err != nil {
