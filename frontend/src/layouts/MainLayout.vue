@@ -18,7 +18,6 @@ import {
   Setting,
   Sunny,
   SwitchButton,
-  Terminal,
   User,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -70,7 +69,7 @@ const menuItems = computed(() => [
   { index: '/registry', icon: OfficeBuilding, title: '仓库管理' },
   { index: '/cron', icon: Clock, title: '计划任务' },
   { index: '/files', icon: FolderOpened, title: '文件管理' },
-  { index: '/terminal', icon: Terminal, title: '终端' },
+  { index: '/terminal', icon: Monitor, title: '终端' },
   { index: '/docker-config', icon: Setting, title: 'Docker 配置' },
 ])
 
