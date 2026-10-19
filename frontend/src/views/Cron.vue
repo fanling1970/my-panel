@@ -234,9 +234,11 @@ function saveTimer() {
   persist()
 }
 
-function computeNext(freq: string, time: string) {
+function computeNext(_freq: string, time: string) {
   if (!time) return '-'
-  const [h, m] = time.split(':').map(Number)
+  const parts = time.split(':').map(Number)
+  const h = parts[0] || 0
+  const m = parts[1] || 0
   const d = new Date()
   d.setHours(h, m, 0, 0)
   if (d < new Date()) d.setDate(d.getDate() + 1)
