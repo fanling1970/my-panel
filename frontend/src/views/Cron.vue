@@ -14,10 +14,13 @@
           <el-table-column label="执行容器" prop="container" />
           <el-table-column label="执行计划" prop="schedule" />
           <el-table-column label="下次时间" prop="next" />
-          <el-table-column label="操作" width="150">
-            <template #default>
-              <el-button link type="primary" size="small">编辑</el-button>
-              <el-button link type="danger" size="small">删除</el-button>
+          <el-table-column label="操作" width="200">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click="runTask(row)">执行</el-button>
+              <el-button link type="primary" size="small" @click="editTask(row)">编辑</el-button>
+              <el-popconfirm title="确定删除？" @confirm="deleteTask(row)">
+                <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
+              </el-popconfirm>
             </template>
           </el-table-column>
         </el-table>
@@ -113,7 +116,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import request from '@/utils/request'
+import { containerApi } from '@/api/containers'
 
 const tab = ref('task')
 const tasks = ref<any[]>([])
@@ -126,15 +129,29 @@ const containers = ref<string[]>([])
 
 async function loadContainers() {
   try {
-    const res = await request.get('/containers/list')
-    containers.value = (res.data || []).map((c: any) => c.Names?.[0]?.replace('/', '') || c.Name || '')
+    const res = await containerApi.list()
+    containers.value = (res || []).map((c: any) => c.Names?.[0]?.replace('/', '') || c.Name || '')
   } catch {}
 }
 
 function saveTask() {
-  tasks.value.push({ name: form.value.name, container: '-', schedule: '-', next: '-' })
+  tasks.value.push({ name: form.value.name, container: '-', schedule: '手动', next: '-' })
   showCreate.value = false
   form.value = { name: '', trigger: 'period', period: 'week', hour: '', minute: '', shell: 'sh', script: '' }
+}
+
+function runTask(row: any) {
+  row.next = '执行中...'
+  setTimeout(() => { row.next = new Date().toLocaleString() }, 1000)
+}
+
+function editTask(row: any) {
+  form.value.name = row.name
+  showCreate.value = true
+}
+
+function deleteTask(row: any) {
+  tasks.value = tasks.value.filter(t => t !== row)
 }
 
 function saveTimer() {
