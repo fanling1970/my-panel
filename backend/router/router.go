@@ -136,6 +136,7 @@ func (r *Router) Register() {
 
 		// File manager routes
 		apiAuth.GET("/fs/list", r.handleFsList)
+		apiAuth.POST("/cron/exec", r.handleCronExec)
 		apiAuth.GET("/fs/read", r.handleFsRead)
 		apiAuth.POST("/fs/write", r.handleFsWrite)
 		apiAuth.POST("/fs/delete", r.handleFsDelete)
@@ -2227,6 +2228,19 @@ func (r *Router) handleComposeDelete(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleCronExec(c *gin.Context) {
+	var req struct {
+		Script string `json:"script"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	cmd := exec.Command("sh", "-c", req.Script)
+	out, _ := cmd.CombinedOutput()
+	c.JSON(200, gin.H{"output": string(out)})
 }
 
 func (r *Router) handleFsList(c *gin.Context) {

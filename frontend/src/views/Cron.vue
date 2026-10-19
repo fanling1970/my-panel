@@ -4,7 +4,7 @@
       <h2>计划任务</h2>
       <div class="header-actions">
         <el-button type="primary" @click="showCreate = true">创建计划任务</el-button>
-        <el-button type="primary" @click="showTimer = true">创建定时任务</el-button>
+        <el-button type="primary" @click="openCreateTimer">创建定时任务</el-button>
       </div>
     </div>
     <el-tabs v-model="tab">
@@ -16,6 +16,9 @@
           <el-table-column label="执行容器" prop="container" />
           <el-table-column label="执行计划" prop="schedule" />
           <el-table-column label="下次时间" prop="next" />
+          <el-table-column label="状态" width="80">
+            <template #default="{ row }">{{ row.status || '-' }}</template>
+          </el-table-column>
           <el-table-column label="操作" width="200">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="runTask(row)">执行</el-button>
@@ -37,9 +40,9 @@
             <template #default="{ row }">{{ actionMap[row.action] || row.action }}</template>
           </el-table-column>
           <el-table-column label="执行规则">
-            <template #default="{ row }">{{ freqMap[row.freq] }} {{ row.time }}</template>
+            <template #default="{ row }">{{ freqMap[row.freq] || '' }} {{ (row.time || '').slice(0, 5) }}</template>
           </el-table-column>
-          <el-table-column label="下次执行" prop="next">
+          <el-table-column label="下次执行">
             <template #default="{ row }">{{ row.next || '-' }}</template>
           </el-table-column>
           <el-table-column label="启用" width="80">
@@ -123,10 +126,9 @@
       </template>
     </el-drawer>
 
-    <el-drawer v-model="showDetail" :title="detailRow?.name || ''" size="70%" :close-on-click-modal="false">
+    <el-drawer v-model="showDetail" :title="detailRow?.name || ''" size="50%" :close-on-click-modal="false">
       <div style="margin-bottom:16px">
         <el-button type="primary" @click="runTaskDetail">执行</el-button>
-        <el-button>暂停</el-button>
         <el-button type="danger">清空</el-button>
         <el-button @click="editTask(detailRow)">编辑</el-button>
       </div>
@@ -140,12 +142,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { containerApi } from '@/api/containers'
+import request from '@/utils/request'
 
 const tab = ref('task')
 const tasks = ref<any[]>(JSON.parse(localStorage.getItem('cron_tasks') || '[]'))
 const timers = ref<any[]>(JSON.parse(localStorage.getItem('cron_timers') || '[]'))
 const showCreate = ref(false)
 const showTimer = ref(false)
+function openCreateTimer() {
+  timerForm.value = { name: '', targetType: 'container', target: '', action: 'start', freq: 'day', time: '', enabled: true }
+  showTimer.value = true
+}
 const showDetail = ref(false)
 const detailRow = ref<any>(null)
 const logText = ref('')
@@ -198,8 +205,19 @@ function openDetail(row: any) {
   showDetail.value = true
 }
 
-function runTaskDetail() {
-  logText.value = `[$(date)] 开始执行: ${detailRow.value?.script}\n执行完成\n`
+async function runTaskDetail() {
+  if (!detailRow.value?.script) return
+  logText.value = '执行中...\n'
+  try {
+    const res = await request.post('/cron/exec', { script: detailRow.value.script })
+    logText.value = res.data.output || res.data.output || res.data
+    detailRow.value.status = '成功'
+  } catch (e: any) {
+    logText.value = '执行失败: ' + (e.response?.data?.error || e.message)
+    detailRow.value.status = '失败'
+  }
+  detailRow.value.next = new Date().toLocaleString()
+  persist()
 }
 
 function saveTimer() {
@@ -209,11 +227,20 @@ function saveTimer() {
     action: timerForm.value.action,
     freq: timerForm.value.freq,
     time: timerForm.value.time,
-    next: '-',
+    next: computeNext(timerForm.value.freq, timerForm.value.time),
     enabled: timerForm.value.enabled
   })
   showTimer.value = false
   persist()
+}
+
+function computeNext(freq: string, time: string) {
+  if (!time) return '-'
+  const [h, m] = time.split(':').map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  if (d < new Date()) d.setDate(d.getDate() + 1)
+  return d.toLocaleDateString('zh-CN').replace(/\//g, '/') + ' ' + time.slice(0, 5)
 }
 
 function editTimer(row: any) {
