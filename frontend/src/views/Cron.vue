@@ -119,8 +119,8 @@ import { ref, onMounted } from 'vue'
 import { containerApi } from '@/api/containers'
 
 const tab = ref('task')
-const tasks = ref<any[]>([])
-const timers = ref<any[]>([])
+const tasks = ref<any[]>(JSON.parse(localStorage.getItem('cron_tasks') || '[]'))
+const timers = ref<any[]>(JSON.parse(localStorage.getItem('cron_timers') || '[]'))
 const showCreate = ref(false)
 const showTimer = ref(false)
 const form = ref({ name: '', trigger: 'period', period: 'week', hour: '', minute: '', shell: 'sh', script: '' })
@@ -129,15 +129,22 @@ const containers = ref<string[]>([])
 
 async function loadContainers() {
   try {
-    const res = await containerApi.list()
-    containers.value = (res || []).map((c: any) => c.Names?.[0]?.replace('/', '') || c.Name || '')
+    const res: any = await containerApi.list()
+    const arr = Array.isArray(res) ? res : (res?.containers || res?.data || [])
+    containers.value = arr.map((c: any) => c.Names?.[0]?.replace('/', '') || c.Name || c.name || '')
   } catch {}
 }
 
+function persist() {
+  localStorage.setItem('cron_tasks', JSON.stringify(tasks.value))
+  localStorage.setItem('cron_timers', JSON.stringify(timers.value))
+}
+
 function saveTask() {
-  tasks.value.push({ name: form.value.name, container: '-', schedule: '手动', next: '-' })
+  tasks.value.push({ name: form.value.name, container: '-', schedule: '手动', next: '-', script: form.value.script })
   showCreate.value = false
   form.value = { name: '', trigger: 'period', period: 'week', hour: '', minute: '', shell: 'sh', script: '' }
+  persist()
 }
 
 function runTask(row: any) {
@@ -147,11 +154,13 @@ function runTask(row: any) {
 
 function editTask(row: any) {
   form.value.name = row.name
+  form.value.script = row.script || ''
   showCreate.value = true
 }
 
 function deleteTask(row: any) {
   tasks.value = tasks.value.filter(t => t !== row)
+  persist()
 }
 
 function saveTimer() {
@@ -165,6 +174,7 @@ function saveTimer() {
     enabled: timerForm.value.enabled
   })
   showTimer.value = false
+  persist()
 }
 
 onMounted(loadContainers)
