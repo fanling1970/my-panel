@@ -10,7 +10,9 @@
     <el-tabs v-model="tab">
       <el-tab-pane label="计划任务" name="task">
         <el-table :data="tasks" stripe style="width:100%">
-          <el-table-column label="描述" prop="name" />
+          <el-table-column label="任务名称" prop="name">
+            <template #default="{ row }"><el-link type="primary" @click="openDetail(row)">{{ row.name }}</el-link></template>
+          </el-table-column>
           <el-table-column label="执行容器" prop="container" />
           <el-table-column label="执行计划" prop="schedule" />
           <el-table-column label="下次时间" prop="next" />
@@ -27,19 +29,28 @@
       </el-tab-pane>
       <el-tab-pane label="定时任务" name="timer">
         <el-table :data="timers" stripe style="width:100%">
-          <el-table-column label="任务名称" prop="name" />
+          <el-table-column label="任务名称" prop="name">
+            <template #default="{ row }"><el-link type="primary" @click="editTimer(row)">{{ row.name }}</el-link></template>
+          </el-table-column>
           <el-table-column label="目标" prop="target" />
-          <el-table-column label="类型" prop="type" />
-          <el-table-column label="Cron表达式" prop="cron" />
-          <el-table-column label="执行规则" prop="rule" />
-          <el-table-column label="下次执行" prop="next" />
+          <el-table-column label="类型">
+            <template #default="{ row }">{{ actionMap[row.action] || row.action }}</template>
+          </el-table-column>
+          <el-table-column label="执行规则">
+            <template #default="{ row }">{{ freqMap[row.freq] }} {{ row.time }}</template>
+          </el-table-column>
+          <el-table-column label="下次执行" prop="next">
+            <template #default="{ row }">{{ row.next || '-' }}</template>
+          </el-table-column>
           <el-table-column label="启用" width="80">
-            <template #default="{ row }"><el-switch v-model="row.enabled" /></template>
+            <template #default="{ row }"><el-switch v-model="row.enabled" @change="persist" /></template>
           </el-table-column>
           <el-table-column label="操作" width="120">
-            <template #default>
-              <el-button link type="primary" size="small">编辑</el-button>
-              <el-button link type="danger" size="small">删除</el-button>
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click="editTimer(row)">编辑</el-button>
+              <el-popconfirm title="确定删除？" @confirm="deleteTimer(row)">
+                <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
+              </el-popconfirm>
             </template>
           </el-table-column>
         </el-table>
@@ -111,6 +122,18 @@
         <el-button type="primary" @click="saveTimer">确定</el-button>
       </template>
     </el-drawer>
+
+    <el-drawer v-model="showDetail" :title="detailRow?.name || ''" size="70%" :close-on-click-modal="false">
+      <div style="margin-bottom:16px">
+        <el-button type="primary" @click="runTaskDetail">执行</el-button>
+        <el-button>暂停</el-button>
+        <el-button type="danger">清空</el-button>
+        <el-button @click="editTask(detailRow)">编辑</el-button>
+      </div>
+      <div style="background:#000;color:#0f0;padding:12px;border-radius:4px;height:400px;overflow:auto;font-family:monospace;font-size:13px" ref="logBox">
+        {{ logText }}
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -123,9 +146,15 @@ const tasks = ref<any[]>(JSON.parse(localStorage.getItem('cron_tasks') || '[]'))
 const timers = ref<any[]>(JSON.parse(localStorage.getItem('cron_timers') || '[]'))
 const showCreate = ref(false)
 const showTimer = ref(false)
+const showDetail = ref(false)
+const detailRow = ref<any>(null)
+const logText = ref('')
 const form = ref({ name: '', trigger: 'period', period: 'week', hour: '', minute: '', shell: 'sh', script: '' })
 const timerForm = ref({ name: '', targetType: 'container', target: '', action: 'start', freq: 'day', time: '', enabled: true })
 const containers = ref<string[]>([])
+
+const actionMap: Record<string, string> = { start: '启动', stop: '停止', restart: '重启', update: '更新' }
+const freqMap: Record<string, string> = { day: '每天', week: '每周', month: '每月' }
 
 async function loadContainers() {
   try {
@@ -163,17 +192,37 @@ function deleteTask(row: any) {
   persist()
 }
 
+function openDetail(row: any) {
+  detailRow.value = row
+  logText.value = ''
+  showDetail.value = true
+}
+
+function runTaskDetail() {
+  logText.value = `[$(date)] 开始执行: ${detailRow.value?.script}\n执行完成\n`
+}
+
 function saveTimer() {
   timers.value.push({
     name: timerForm.value.name,
     target: timerForm.value.target,
-    type: timerForm.value.action,
-    cron: '-',
-    rule: '-',
+    action: timerForm.value.action,
+    freq: timerForm.value.freq,
+    time: timerForm.value.time,
     next: '-',
     enabled: timerForm.value.enabled
   })
   showTimer.value = false
+  persist()
+}
+
+function editTimer(row: any) {
+  timerForm.value = { name: row.name, targetType: 'container', target: row.target, action: row.action, freq: row.freq, time: row.time, enabled: row.enabled }
+  showTimer.value = true
+}
+
+function deleteTimer(row: any) {
+  timers.value = timers.value.filter(t => t !== row)
   persist()
 }
 
