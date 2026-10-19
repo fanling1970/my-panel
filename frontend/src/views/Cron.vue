@@ -221,13 +221,14 @@ async function runTaskDetail() {
 }
 
 function saveTimer() {
+  if (!timerForm.value.name) return
   timers.value.push({
     name: timerForm.value.name,
     target: timerForm.value.target,
     action: timerForm.value.action,
     freq: timerForm.value.freq,
     time: timerForm.value.time,
-    next: computeNext(timerForm.value.freq, timerForm.value.time),
+    next: timerForm.value.time ? computeNext(timerForm.value.freq, timerForm.value.time) : '-',
     enabled: timerForm.value.enabled
   })
   showTimer.value = false
