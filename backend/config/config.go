@@ -51,6 +51,7 @@ type App struct {
 	NodeService         *service.NodeService
 	Scheduler           *service.Scheduler
 	UpdateService       *service.UpdateService
+	CronService         *service.CronService
 
 	// Terminal service
 	TerminalService *exec.TerminalService
@@ -132,6 +133,11 @@ func (app *App) initServices() {
 	}
 	app.UpdateService = service.NewUpdateService(app.FileRepo, app.BuildInfo)
 
+	// Cron scheduler (panel is master-only)
+	if app.Mode != "worker" {
+		app.CronService = service.NewCronService(app.SQLiteRepo, app.DockerRepo, app.ComposeService)
+	}
+
 	// Master-only services
 	if app.Mode == "master" {
 		app.Scheduler = service.NewScheduler(app.NodeService, app.DockerRepo, app.NodeSecret, app.RegistryService)
@@ -156,8 +162,16 @@ func (app *App) Run() error {
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		<-sig
 		log.Println("收到关闭信号，正在关闭...")
+		if app.CronService != nil {
+			app.CronService.Stop()
+		}
 		os.Exit(0)
 	}()
+
+	// Start cron scheduler
+	if app.CronService != nil {
+		app.CronService.Start()
+	}
 
 	addr := app.Host + ":" + app.Port
 	log.Printf("服务器启动: %s", addr)

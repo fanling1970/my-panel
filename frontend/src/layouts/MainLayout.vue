@@ -6,6 +6,7 @@ import {
   Box,
   Clock,
   Connection,
+  Cpu,
   Expand,
   Files,
   Fold,
@@ -69,7 +70,7 @@ const menuItems = computed(() => [
   { index: '/registry', icon: OfficeBuilding, title: '仓库管理' },
   { index: '/cron', icon: Clock, title: '计划任务' },
   { index: '/files', icon: FolderOpened, title: '文件管理' },
-  { index: '/terminal', icon: Monitor, title: '终端' },
+  { index: '/terminal', icon: Cpu, title: '终端' },
   { index: '/docker-config', icon: Setting, title: 'Docker 配置' },
 ])
 

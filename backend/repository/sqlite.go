@@ -122,6 +122,46 @@ func (r *SQLiteRepository) initTables() error {
 		return fmt.Errorf("创建聊天记录表失败: %w", err)
 	}
 
+	// Cron tasks table
+	_, err = r.db.Exec(`
+		CREATE TABLE IF NOT EXISTS cron_tasks (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			type TEXT NOT NULL DEFAULT 'script',
+			schedule TEXT NOT NULL,
+			shell TEXT DEFAULT 'sh',
+			script TEXT DEFAULT '',
+			target TEXT DEFAULT '',
+			action TEXT DEFAULT '',
+			enabled INTEGER DEFAULT 1,
+			last_run_at DATETIME,
+			next_run_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`)
+	if err != nil {
+		return fmt.Errorf("创建计划任务表失败: %w", err)
+	}
+
+	// Cron execution logs table
+	_, err = r.db.Exec(`
+		CREATE TABLE IF NOT EXISTS cron_logs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			task_id INTEGER NOT NULL,
+			task_name TEXT DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'running',
+			output TEXT DEFAULT '',
+			started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			finished_at DATETIME
+		)`)
+	if err != nil {
+		return fmt.Errorf("创建计划任务日志表失败: %w", err)
+	}
+	_, err = r.db.Exec(`CREATE INDEX IF NOT EXISTS idx_cron_logs_task ON cron_logs(task_id, started_at)`)
+	if err != nil {
+		return fmt.Errorf("创建计划任务日志索引失败: %w", err)
+	}
+
 	// Check if default admin user exists
 	var count int
 	err = r.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)

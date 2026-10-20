@@ -137,6 +137,19 @@ func (r *Router) Register() {
 		// File manager routes
 		apiAuth.GET("/fs/list", r.handleFsList)
 		apiAuth.POST("/cron/exec", r.handleCronExec)
+
+		// Cron task routes
+		apiAuth.GET("/cron/tasks", r.handleCronList)
+		apiAuth.POST("/cron/tasks", r.handleCronCreate)
+		apiAuth.PUT("/cron/tasks", r.handleCronUpdate)
+		apiAuth.POST("/cron/tasks/delete", r.handleCronDelete)
+		apiAuth.POST("/cron/tasks/run", r.handleCronRun)
+		apiAuth.GET("/cron/logs", r.handleCronLogs)
+		apiAuth.POST("/cron/logs/clear", r.handleCronLogsClear)
+
+		// Host terminal
+		apiAuth.GET("/terminal/host", r.handleHostTerminalWS)
+
 		apiAuth.GET("/fs/read", r.handleFsRead)
 		apiAuth.POST("/fs/write", r.handleFsWrite)
 		apiAuth.POST("/fs/delete", r.handleFsDelete)
@@ -2241,6 +2254,192 @@ func (r *Router) handleCronExec(c *gin.Context) {
 	cmd := exec.Command("sh", "-c", req.Script)
 	out, _ := cmd.CombinedOutput()
 	c.JSON(200, gin.H{"output": string(out)})
+}
+
+// === Cron Task Handlers ===
+
+func (r *Router) handleCronList(c *gin.Context) {
+	tasks, err := r.app.CronService.ListTasks()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if tasks == nil {
+		tasks = []*model.CronTask{}
+	}
+	c.JSON(http.StatusOK, tasks)
+}
+
+func (r *Router) handleCronCreate(c *gin.Context) {
+	var task model.CronTask
+	if err := c.ShouldBindJSON(&task); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	id, err := r.app.CronService.CreateTask(&task)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	created, err := r.app.CronService.GetTask(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, created)
+}
+
+func (r *Router) handleCronUpdate(c *gin.Context) {
+	var task model.CronTask
+	if err := c.ShouldBindJSON(&task); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := r.app.CronService.UpdateTask(&task); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	updated, err := r.app.CronService.GetTask(task.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, updated)
+}
+
+func (r *Router) handleCronDelete(c *gin.Context) {
+	var req struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务 ID"})
+		return
+	}
+	if err := r.app.CronService.DeleteTask(req.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleCronRun(c *gin.Context) {
+	var req struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务 ID"})
+		return
+	}
+	if err := r.app.CronService.RunNow(req.ID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "started"})
+}
+
+func (r *Router) handleCronLogs(c *gin.Context) {
+	taskID, _ := strconv.ParseInt(c.Query("task_id"), 10, 64)
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	logs, err := r.app.CronService.TaskLogs(taskID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if logs == nil {
+		logs = []*model.CronLog{}
+	}
+	c.JSON(http.StatusOK, logs)
+}
+
+func (r *Router) handleCronLogsClear(c *gin.Context) {
+	var req struct {
+		TaskID int64 `json:"task_id"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	if err := r.app.CronService.ClearLogs(req.TaskID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// === Host Terminal WebSocket Handler ===
+
+func (r *Router) handleHostTerminalWS(c *gin.Context) {
+	cols, rows := uint16(80), uint16(24)
+	if v, err := strconv.Atoi(c.Query("cols")); err == nil && v > 0 && v < 500 {
+		cols = uint16(v)
+	}
+	if v, err := strconv.Atoi(c.Query("rows")); err == nil && v > 0 && v < 500 {
+		rows = uint16(v)
+	}
+
+	p, err := execlib.StartHostShell(cols, rows)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "启动 shell 失败: "+err.Error())
+		return
+	}
+	defer p.Close()
+
+	conn, err := ginWsUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	done := make(chan struct{})
+
+	// shell 输出 → WebSocket
+	go func() {
+		defer close(done)
+		buf := make([]byte, 8192)
+		for {
+			n, rerr := p.Read(buf)
+			if n > 0 {
+				if werr := conn.WriteMessage(ws.BinaryMessage, buf[:n]); werr != nil {
+					return
+				}
+			}
+			if rerr != nil {
+				return
+			}
+		}
+	}()
+
+	// WebSocket 输入 → shell
+	for {
+		select {
+		case <-done:
+			return
+		default:
+		}
+		mt, message, err := conn.ReadMessage()
+		if err != nil {
+			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway, ws.CloseAbnormalClosure, ws.CloseNoStatusReceived) {
+				log.Printf("[HostTerminal] Read error: %v", err)
+			}
+			return
+		}
+		if mt == ws.TextMessage && len(message) > 0 && message[0] == '{' {
+			var resize struct {
+				Type string `json:"type"`
+				Cols int    `json:"cols"`
+				Rows int    `json:"rows"`
+			}
+			if json.Unmarshal(message, &resize) == nil && resize.Type == "resize" {
+				_ = p.Resize(uint16(resize.Cols), uint16(resize.Rows))
+				continue
+			}
+		}
+		if _, err := p.Write(message); err != nil {
+			log.Printf("[HostTerminal] 写入 shell 失败: %v", err)
+			return
+		}
+		// 无 PTY 的回退实现由服务端回显
+		if p.LocalEcho() && len(message) > 0 {
+			_ = conn.WriteMessage(ws.BinaryMessage, message)
+		}
+	}
 }
 
 func (r *Router) handleFsList(c *gin.Context) {
