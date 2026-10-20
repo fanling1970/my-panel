@@ -224,15 +224,19 @@ async function saveFile() {
 
 function goBack() {
   if (!canBack.value) return
+  const target = historyStack.value[historyIndex.value - 1]
+  if (target === undefined) return
   historyIndex.value--
-  currentPath.value = historyStack.value[historyIndex.value]
+  currentPath.value = target
   loadFiles()
 }
 
 function goForward() {
   if (!canForward.value) return
+  const target = historyStack.value[historyIndex.value + 1]
+  if (target === undefined) return
   historyIndex.value++
-  currentPath.value = historyStack.value[historyIndex.value]
+  currentPath.value = target
   loadFiles()
 }
 
