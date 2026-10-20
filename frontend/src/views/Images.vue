@@ -203,7 +203,7 @@ async function handlePull() {
   let name = pullImage.value.trim()
   if (pullRegistry.value && pullRegistry.value !== 'docker.io') {
     const host = pullRegistry.value.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-    const first = name.split('/')[0]
+    const first = name.split('/')[0] ?? ''
     const hasRegistry = first.includes('.') || first.includes(':') || first === 'localhost'
     if (host && !hasRegistry) {
       name = `${host}/${name}`
