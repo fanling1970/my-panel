@@ -52,6 +52,7 @@ type App struct {
 	Scheduler           *service.Scheduler
 	UpdateService       *service.UpdateService
 	CronService         *service.CronService
+	SSHTerminalService  *service.SSHTerminalService
 
 	// Terminal service
 	TerminalService *exec.TerminalService
@@ -152,6 +153,7 @@ func (app *App) initServices() {
 
 	// Terminal service
 	app.TerminalService = exec.NewTerminalService(app.DockerRepo)
+	app.SSHTerminalService = service.NewSSHTerminalService(app.SQLiteRepo)
 }
 
 // Run 启动应用

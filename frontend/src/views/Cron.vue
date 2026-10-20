@@ -28,8 +28,14 @@
       </el-table-column>
       <el-table-column label="执行计划" min-width="150">
         <template #default="{ row }">
-          <span class="mono">{{ row.schedule }}</span>
-          <span class="muted" v-if="scheduleHint(row.schedule)">（{{ scheduleHint(row.schedule) }}）</span>
+          <template v-if="row.schedule === 'manual'">
+            <span>手动</span>
+            <span class="muted">（点击「执行」立即运行）</span>
+          </template>
+          <template v-else>
+            <span class="mono">{{ row.schedule }}</span>
+            <span class="muted" v-if="scheduleHint(row.schedule)">（{{ scheduleHint(row.schedule) }}）</span>
+          </template>
         </template>
       </el-table-column>
       <el-table-column label="上次执行" width="160">
@@ -123,34 +129,42 @@
         </template>
 
         <el-form-item label="执行计划" required>
-          <el-radio-group v-model="form.scheduleMode" style="margin-bottom:8px">
-            <el-radio-button value="simple">简单模式</el-radio-button>
-            <el-radio-button value="cron">Cron 表达式</el-radio-button>
-          </el-radio-group>
+          <div class="schedule-row">
+            <el-radio-group v-model="form.scheduleMode" size="default">
+              <el-radio-button value="simple">简单模式</el-radio-button>
+              <el-radio-button value="cron">Cron 表达式</el-radio-button>
+              <el-radio-button v-if="form.type === 'script'" value="manual">手动</el-radio-button>
+            </el-radio-group>
 
-          <template v-if="form.scheduleMode === 'simple'">
-            <div class="simple-schedule">
-              <el-select v-model="form.freq" style="width:110px" @change="form.weekdays = [1]">
+            <template v-if="form.scheduleMode === 'simple'">
+              <el-select v-model="form.freq" size="default" style="width:110px" @change="form.weekdays = [1]">
                 <el-option label="每天" value="day" />
                 <el-option label="每周" value="week" />
                 <el-option label="每月" value="month" />
               </el-select>
-              <el-select v-if="form.freq === 'week'" v-model="form.weekdays" multiple collapse-tags style="width:220px">
+              <el-select v-if="form.freq === 'week'" v-model="form.weekdays" multiple collapse-tags size="default" style="width:220px">
                 <el-option v-for="(label, idx) in weekdayLabels" :key="idx" :label="label" :value="idx" />
               </el-select>
-              <el-input-number v-if="form.freq === 'month'" v-model="form.dayOfMonth" :min="1" :max="31" style="width:110px" />
-              <el-time-picker v-model="form.time" format="HH:mm" placeholder="时间" style="width:130px" />
-            </div>
+              <el-input-number v-if="form.freq === 'month'" v-model="form.dayOfMonth" size="default" :min="1" :max="31" style="width:110px" />
+              <el-time-picker v-model="form.time" size="default" format="HH:mm" placeholder="时间" style="width:130px" />
+            </template>
+          </div>
+
+          <template v-if="form.scheduleMode === 'simple'">
             <div class="hint" v-if="simpleCronPreview">对应表达式: <span class="mono">{{ simpleCronPreview }}</span></div>
           </template>
 
-          <template v-else>
+          <template v-else-if="form.scheduleMode === 'cron'">
             <el-input v-model="form.schedule" placeholder="分 时 日 月 周，例如: 0 8 * * *" class="mono" />
             <div class="hint">
               支持 <span class="mono">*/n</span> 步长、<span class="mono">a-b</span> 范围、<span class="mono">a,b</span> 列表及
               <span class="mono">@daily</span> 等快捷方式
             </div>
           </template>
+
+          <div class="hint" v-else>
+            手动任务不会自动执行，保存后在任务列表点击「执行」立即运行一次
+          </div>
         </el-form-item>
 
         <el-form-item label="启用">
@@ -195,7 +209,7 @@
     </el-drawer>
 
     <!-- 输出对话框 -->
-    <el-dialog v-model="showOutputDialog" title="执行输出" width="70%">
+    <el-dialog v-model="showOutputDialog" title="执行输出" width="66%">
       <pre class="output-box">{{ outputText || '（无输出）' }}</pre>
     </el-dialog>
   </div>
@@ -229,7 +243,7 @@ const form = ref({
   script: '',
   target: '',
   action: 'start',
-  scheduleMode: 'simple' as 'simple' | 'cron',
+  scheduleMode: 'simple' as 'simple' | 'cron' | 'manual',
   freq: 'day',
   weekdays: [1] as number[],
   dayOfMonth: 1,
@@ -386,16 +400,21 @@ function openEdit(row: TaskRow) {
   f.target = row.target || ''
   f.action = row.action || 'start'
   f.enabled = row.enabled
-  f.scheduleMode = 'cron'
-  f.schedule = row.schedule
+  if (row.schedule === 'manual') {
+    f.scheduleMode = 'manual'
+    f.schedule = '0 8 * * *'
+  } else {
+    f.scheduleMode = 'cron'
+    f.schedule = row.schedule
+  }
   showForm.value = true
 }
 
 async function save() {
   const f = form.value
-  const schedule = f.scheduleMode === 'simple' ? simpleCronPreview.value : f.schedule.trim()
+  const schedule = f.scheduleMode === 'manual' ? 'manual' : f.scheduleMode === 'simple' ? simpleCronPreview.value : f.schedule.trim()
   if (!f.name.trim()) { ElMessage.warning('请输入任务名称'); return }
-  if (!schedule) { ElMessage.warning('请设置执行计划'); return }
+  if (f.scheduleMode !== 'manual' && !schedule) { ElMessage.warning('请设置执行计划'); return }
   if (f.type === 'script' && !f.script.trim()) { ElMessage.warning('请输入脚本内容'); return }
   if (f.type !== 'script' && !f.target) { ElMessage.warning(f.type === 'container' ? '请选择容器' : '请选择 Compose 项目'); return }
 
@@ -516,11 +535,23 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
   margin-top: 4px;
 }
-.simple-schedule {
+.schedule-row {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  width: 100%;
+}
+/* 执行计划行内控件统一 32px 高度，避免高低不一致 */
+.schedule-row :deep(.el-radio-group) {
+  height: 32px;
+}
+.schedule-row :deep(.el-select__wrapper) {
+  min-height: 32px;
+}
+.schedule-row :deep(.el-input__wrapper),
+.schedule-row :deep(.el-input-number) {
+  height: 32px;
 }
 .output-box {
   background: #1e1e1e;

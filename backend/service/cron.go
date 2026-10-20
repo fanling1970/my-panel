@@ -89,6 +89,10 @@ func (s *CronService) tick() {
 		if !t.Enabled || t.NextRunAt != nil {
 			continue
 		}
+		// 手动任务没有调度计划，跳过补算
+		if t.Schedule == "manual" {
+			continue
+		}
 		// 补算缺失的下次执行时间（新建/升级遗留）
 		expr, err := ParseCron(t.Schedule)
 		if err != nil {
@@ -235,9 +239,14 @@ func (s *CronService) CreateTask(t *model.CronTask) (int64, error) {
 	if err := s.validateTask(t); err != nil {
 		return 0, err
 	}
-	expr, _ := ParseCron(t.Schedule)
-	next := expr.Next(time.Now())
-	t.NextRunAt = &next
+	if t.Schedule == "manual" {
+		// 手动任务：不设下次执行时间
+		t.NextRunAt = nil
+	} else {
+		expr, _ := ParseCron(t.Schedule)
+		next := expr.Next(time.Now())
+		t.NextRunAt = &next
+	}
 	return s.repo.CreateCronTask(t)
 }
 
@@ -249,9 +258,13 @@ func (s *CronService) UpdateTask(t *model.CronTask) error {
 	if err := s.validateTask(t); err != nil {
 		return err
 	}
-	expr, _ := ParseCron(t.Schedule)
-	next := expr.Next(time.Now())
-	t.NextRunAt = &next
+	if t.Schedule == "manual" {
+		t.NextRunAt = nil
+	} else {
+		expr, _ := ParseCron(t.Schedule)
+		next := expr.Next(time.Now())
+		t.NextRunAt = &next
+	}
 	return s.repo.UpdateCronTask(t)
 }
 
@@ -269,9 +282,13 @@ func (s *CronService) RunNow(id int64) error {
 	if err != nil || t == nil {
 		return fmt.Errorf("任务不存在")
 	}
-	expr, err := ParseCron(t.Schedule)
-	if err != nil {
-		return err
+	var expr *cronExpr
+	if t.Schedule != "manual" {
+		e, err := ParseCron(t.Schedule)
+		if err != nil {
+			return err
+		}
+		expr = e
 	}
 	s.execute(t, expr, false)
 	return nil
@@ -296,7 +313,9 @@ func (s *CronService) validateTask(t *model.CronTask) error {
 		return fmt.Errorf("任务名称不能为空")
 	}
 	t.Schedule = strings.TrimSpace(t.Schedule)
-	if _, err := ParseCron(t.Schedule); err != nil {
+	if t.Schedule == "manual" {
+		// 手动任务：仅通过「执行」触发，不校验 cron 表达式
+	} else if _, err := ParseCron(t.Schedule); err != nil {
 		return fmt.Errorf("无效的执行计划: %v", err)
 	}
 	t.Type = strings.TrimSpace(t.Type)

@@ -147,8 +147,11 @@ func (r *Router) Register() {
 		apiAuth.GET("/cron/logs", r.handleCronLogs)
 		apiAuth.POST("/cron/logs/clear", r.handleCronLogsClear)
 
-		// Host terminal
-		apiAuth.GET("/terminal/host", r.handleHostTerminalWS)
+		// Host terminal (SSH)
+		apiAuth.GET("/terminal/ssh-config", r.handleSSHConfigGet)
+		apiAuth.POST("/terminal/ssh-config", r.handleSSHConfigSave)
+		apiAuth.POST("/terminal/ssh-test", r.handleSSHTest)
+		apiAuth.GET("/terminal/ssh", r.handleSSHTerminalWS)
 
 		apiAuth.GET("/fs/read", r.handleFsRead)
 		apiAuth.POST("/fs/write", r.handleFsWrite)
@@ -2363,23 +2366,63 @@ func (r *Router) handleCronLogsClear(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-// === Host Terminal WebSocket Handler ===
+// === Host Terminal (SSH) Handlers ===
 
-func (r *Router) handleHostTerminalWS(c *gin.Context) {
-	cols, rows := uint16(80), uint16(24)
-	if v, err := strconv.Atoi(c.Query("cols")); err == nil && v > 0 && v < 500 {
-		cols = uint16(v)
-	}
-	if v, err := strconv.Atoi(c.Query("rows")); err == nil && v > 0 && v < 500 {
-		rows = uint16(v)
-	}
-
-	p, err := execlib.StartHostShell(cols, rows)
+func (r *Router) handleSSHConfigGet(c *gin.Context) {
+	cfg, err := r.app.SSHTerminalService.GetConfig()
 	if err != nil {
-		c.String(http.StatusInternalServerError, "启动 shell 失败: "+err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer p.Close()
+	c.JSON(http.StatusOK, cfg)
+}
+
+func (r *Router) handleSSHConfigSave(c *gin.Context) {
+	var req struct {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := r.app.SSHTerminalService.SaveConfig(req.Host, req.Port, req.Username, req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (r *Router) handleSSHTest(c *gin.Context) {
+	var req struct {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := r.app.SSHTerminalService.TestConnection(req.Host, req.Port, req.Username, req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// handleSSHTerminalWS 宿主机 SSH 终端 WebSocket。
+// 二进制/文本帧为终端输入输出，JSON 帧 {"type":"resize","cols":n,"rows":n} 调整窗口大小。
+func (r *Router) handleSSHTerminalWS(c *gin.Context) {
+	cols, rows := uint32(80), uint32(24)
+	if v, err := strconv.Atoi(c.Query("cols")); err == nil && v > 0 && v < 500 {
+		cols = uint32(v)
+	}
+	if v, err := strconv.Atoi(c.Query("rows")); err == nil && v > 0 && v < 500 {
+		rows = uint32(v)
+	}
 
 	conn, err := ginWsUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -2387,14 +2430,21 @@ func (r *Router) handleHostTerminalWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
+	session, stdin, stdout, cleanup, err := r.app.SSHTerminalService.StartSession(cols, rows)
+	if err != nil {
+		_ = conn.WriteJSON(gin.H{"type": "error", "data": err.Error()})
+		return
+	}
+	defer cleanup()
+
 	done := make(chan struct{})
 
-	// shell 输出 → WebSocket
+	// SSH 输出 → WebSocket
 	go func() {
 		defer close(done)
 		buf := make([]byte, 8192)
 		for {
-			n, rerr := p.Read(buf)
+			n, rerr := stdout.Read(buf)
 			if n > 0 {
 				if werr := conn.WriteMessage(ws.BinaryMessage, buf[:n]); werr != nil {
 					return
@@ -2406,7 +2456,7 @@ func (r *Router) handleHostTerminalWS(c *gin.Context) {
 		}
 	}()
 
-	// WebSocket 输入 → shell
+	// WebSocket 输入 → SSH
 	for {
 		select {
 		case <-done:
@@ -2416,7 +2466,7 @@ func (r *Router) handleHostTerminalWS(c *gin.Context) {
 		mt, message, err := conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway, ws.CloseAbnormalClosure, ws.CloseNoStatusReceived) {
-				log.Printf("[HostTerminal] Read error: %v", err)
+				log.Printf("[SSHTerminal] Read error: %v", err)
 			}
 			return
 		}
@@ -2427,17 +2477,13 @@ func (r *Router) handleHostTerminalWS(c *gin.Context) {
 				Rows int    `json:"rows"`
 			}
 			if json.Unmarshal(message, &resize) == nil && resize.Type == "resize" {
-				_ = p.Resize(uint16(resize.Cols), uint16(resize.Rows))
+				_ = session.WindowChange(int(resize.Rows), int(resize.Cols))
 				continue
 			}
 		}
-		if _, err := p.Write(message); err != nil {
-			log.Printf("[HostTerminal] 写入 shell 失败: %v", err)
+		if _, err := stdin.Write(message); err != nil {
+			log.Printf("[SSHTerminal] 写入 SSH 失败: %v", err)
 			return
-		}
-		// 无 PTY 的回退实现由服务端回显
-		if p.LocalEcho() && len(message) > 0 {
-			_ = conn.WriteMessage(ws.BinaryMessage, message)
 		}
 	}
 }

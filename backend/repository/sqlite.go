@@ -162,6 +162,21 @@ func (r *SQLiteRepository) initTables() error {
 		return fmt.Errorf("创建计划任务日志索引失败: %w", err)
 	}
 
+	// Terminal host (SSH) config table
+	_, err = r.db.Exec(`
+		CREATE TABLE IF NOT EXISTS terminal_hosts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			host TEXT NOT NULL,
+			port INTEGER NOT NULL DEFAULT 22,
+			username TEXT NOT NULL DEFAULT 'root',
+			password TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`)
+	if err != nil {
+		return fmt.Errorf("创建终端配置表失败: %w", err)
+	}
+
 	// Check if default admin user exists
 	var count int
 	err = r.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)

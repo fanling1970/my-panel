@@ -3,16 +3,29 @@
     <div class="page-header">
       <h2 style="margin-bottom:20px">文件管理</h2>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;padding:10px 16px;background:#f5f7fa;border-radius:6px">
-      <el-button @click="goBack">←</el-button>
-      <el-button @click="goHome">🏠</el-button>
-      <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ path: '/host' }" @click="goHome">host</el-breadcrumb-item>
-        <el-breadcrumb-item v-for="(seg, i) in pathSegments" :key="i">
-          <el-link type="primary" @click="goToSegment(i)">{{ seg }}</el-link>
-        </el-breadcrumb-item>
-      </el-breadcrumb>
-      <el-button @click="loadFiles" style="margin-left:auto">刷新</el-button>
+    <div class="files-navbar">
+      <div class="nav-btns">
+        <button class="nav-btn" :disabled="!canBack" title="后退" @click="goBack">
+          <el-icon><ArrowLeft /></el-icon>
+        </button>
+        <button class="nav-btn" :disabled="!canForward" title="前进" @click="goForward">
+          <el-icon><ArrowRight /></el-icon>
+        </button>
+        <button class="nav-btn" :disabled="currentPath === '/host'" title="上级目录" @click="goUp">
+          <el-icon><ArrowUp /></el-icon>
+        </button>
+        <button class="nav-btn" title="刷新" @click="loadFiles">
+          <el-icon><Refresh /></el-icon>
+        </button>
+      </div>
+      <div class="path-bar">
+        <el-icon class="path-home" title="主目录" @click="goHome"><HomeFilled /></el-icon>
+        <span class="path-seg" @click="goHome">host</span>
+        <template v-for="(seg, i) in pathSegments" :key="i">
+          <span class="path-sep">/</span>
+          <span class="path-seg" @click="goToSegment(i)">{{ seg }}</span>
+        </template>
+      </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <el-button size="small" @click="newFile">新建文件</el-button>
@@ -50,9 +63,10 @@
       <el-table-column label="修改时间" width="180">
         <template #default="{ row }">{{ row.modTime }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="openRow(row)">打开</el-button>
+          <el-button link type="primary" size="small" @click="copyPath(row)">复制路径</el-button>
           <el-button link type="primary" size="small" @click="renameRow(row)">重命名</el-button>
           <el-popconfirm title="确定删除？" @confirm="deleteSingle(row)">
             <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
@@ -102,9 +116,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, ArrowRight, ArrowUp, Refresh, HomeFilled } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const currentPath = ref('/host')
+// 导航历史（后退/前进）
+const historyStack = ref<string[]>(['/host'])
+const historyIndex = ref(0)
 const files = ref<any[]>([])
 const selected = ref<any[]>([])
 const search = ref('')
@@ -142,10 +160,23 @@ const pathSegments = computed(() => {
   return currentPath.value.replace('/host', '').split('/').filter(Boolean)
 })
 
+const canBack = computed(() => historyIndex.value > 0)
+const canForward = computed(() => historyIndex.value < historyStack.value.length - 1)
+
+/** 导航到指定路径并记录历史 */
+function navigateTo(path: string) {
+  historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
+  if (historyStack.value[historyStack.value.length - 1] !== path) {
+    historyStack.value.push(path)
+  }
+  historyIndex.value = historyStack.value.length - 1
+  currentPath.value = path
+  loadFiles()
+}
+
 function goToSegment(i: number) {
   const segs = pathSegments.value.slice(0, i + 1)
-  currentPath.value = '/host/' + segs.join('/')
-  loadFiles()
+  navigateTo('/host/' + segs.join('/'))
 }
 
 async function loadFiles() {
@@ -164,8 +195,7 @@ function onSelect(rows: any[]) { selected.value = rows }
 function openRow(row: any) {
   const newPath = joinPath(row.name)
   if (row.isDir) {
-    currentPath.value = newPath
-    loadFiles()
+    navigateTo(newPath)
   } else {
     editingPath.value = newPath
     showEditor.value = true
@@ -193,16 +223,51 @@ async function saveFile() {
 }
 
 function goBack() {
-  if (currentPath.value === '/' || currentPath.value === '/host') return
-  const parts = currentPath.value.split('/').filter(Boolean)
-  parts.pop()
-  currentPath.value = '/' + parts.join('/')
+  if (!canBack.value) return
+  historyIndex.value--
+  currentPath.value = historyStack.value[historyIndex.value]
   loadFiles()
 }
 
-function goHome() {
-  currentPath.value = '/host'
+function goForward() {
+  if (!canForward.value) return
+  historyIndex.value++
+  currentPath.value = historyStack.value[historyIndex.value]
   loadFiles()
+}
+
+function goUp() {
+  if (currentPath.value === '/host') return
+  const parts = currentPath.value.split('/').filter(Boolean)
+  parts.pop()
+  navigateTo(parts.length ? '/' + parts.join('/') : '/host')
+}
+
+function goHome() {
+  navigateTo('/host')
+}
+
+/** 复制文件/目录完整路径到剪贴板 */
+async function copyPath(row: any) {
+  const p = joinPath(row.name)
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(p)
+    } else {
+      // 非安全上下文（HTTP）回退方案
+      const ta = document.createElement('textarea')
+      ta.value = p
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
+    ElMessage.success('已复制路径：' + p)
+  } catch {
+    ElMessage.error('复制失败')
+  }
 }
 
 async function newFile() {
@@ -312,3 +377,77 @@ function formatSize(size: number) {
 
 onMounted(loadFiles)
 </script>
+
+<style scoped>
+.files-navbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.nav-btns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-fill-color-blank);
+  color: var(--el-text-color-regular);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s;
+}
+.nav-btn:hover:not(:disabled) {
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary-light-5);
+  background: var(--el-color-primary-light-9);
+}
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.path-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 16px;
+  background: var(--el-fill-color-blank);
+  overflow: hidden;
+}
+.path-home {
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.path-home:hover {
+  color: var(--el-color-primary);
+}
+.path-seg {
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.path-seg:hover {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+.path-sep {
+  color: var(--el-text-color-placeholder);
+  flex-shrink: 0;
+}
+</style>
