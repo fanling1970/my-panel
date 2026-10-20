@@ -2,9 +2,12 @@ package model
 
 // ComposeProject Docker Compose 项目
 type ComposeProject struct {
-	Name       string             `json:"name"`
-	Status     string             `json:"status"` // running, partial, stopped, unknown
-	Containers []ComposeContainer `json:"containers,omitempty"`
+	Name        string             `json:"name"`
+	Status      string             `json:"status"` // running, partial, stopped, unknown
+	Description string             `json:"description,omitempty"`
+	Ports       string             `json:"ports,omitempty"`
+	CreatedAt   string             `json:"created_at,omitempty"`
+	Containers  []ComposeContainer `json:"containers,omitempty"`
 }
 
 // ComposeContainer Compose 项目中的容器

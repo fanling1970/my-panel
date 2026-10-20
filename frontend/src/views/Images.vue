@@ -84,6 +84,7 @@
         </el-select>
         <el-select v-model="pullRegistry" placeholder="选择镜像仓库，默认为 docker.io" style="flex:1">
           <el-option label="docker.io" value="docker.io" />
+          <el-option v-for="r in registries" :key="r.id" :label="r.name" :value="r.url" />
         </el-select>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:16px">
@@ -116,6 +117,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useImageStore, type SortField } from '@/stores/images'
 import BuildImageDialog from '@/components/image/BuildImageDialog.vue'
 import request from '@/utils/request'
+import registryApi from '@/api/registry'
+import type { RegistryInfo } from '@/types'
 
 const imageStore = useImageStore()
 const searchInput = ref('')
@@ -130,6 +133,14 @@ const pullRegistry = ref('')
 const remoteImportUrl = ref('')
 const pulling = ref(false)
 const pullProgress = ref(0)
+const registries = ref<RegistryInfo[]>([])
+
+/** 加载自定义镜像仓库列表 */
+async function loadRegistries() {
+  try {
+    registries.value = await registryApi.list()
+  } catch { /* 忽略，下拉仅显示 docker.io */ }
+}
 
 // Sync local state with store
 watch(() => imageStore.searchQuery, (val) => { searchInput.value = val })
@@ -188,10 +199,20 @@ async function handlePrune() {
 
 async function handlePull() {
   if (!pullImage.value) return
+  // 镜像名未自带仓库地址时，拼接所选仓库地址（去掉协议和尾斜杠）
+  let name = pullImage.value.trim()
+  if (pullRegistry.value && pullRegistry.value !== 'docker.io') {
+    const host = pullRegistry.value.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+    const first = name.split('/')[0]
+    const hasRegistry = first.includes('.') || first.includes(':') || first === 'localhost'
+    if (host && !hasRegistry) {
+      name = `${host}/${name}`
+    }
+  }
   pulling.value = true
   pullProgress.value = 0
   try {
-    await request.post('/images/pull', { name: pullImage.value })
+    await request.post('/images/pull', { name })
     ElMessage.success('拉取完成')
     showPullDialog.value = false
     pullImage.value = ''
@@ -214,6 +235,7 @@ async function handleExport(row: any) {
 // Fetch images on mount
 onMounted(() => {
   imageStore.fetchImages()
+  loadRegistries()
 })
 </script>
 

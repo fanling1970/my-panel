@@ -2132,15 +2132,16 @@ func (r *Router) handleComposeList(c *gin.Context) {
 
 func (r *Router) handleComposeCreate(c *gin.Context) {
 	var reqBody struct {
-		Name    string `json:"name"`
-		Content string `json:"content"`
+		Name        string `json:"name"`
+		Content     string `json:"content"`
+		Description string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
 		return
 	}
 
-	err := r.app.ComposeService.CreateProject(reqBody.Name, reqBody.Content)
+	err := r.app.ComposeService.CreateProject(reqBody.Name, reqBody.Content, reqBody.Description)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -2232,13 +2233,23 @@ func (r *Router) handleComposeAction(c *gin.Context) {
 func (r *Router) handleComposeDelete(c *gin.Context) {
 	var reqBody struct {
 		Project string `json:"project"`
+		Name    string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
 		return
 	}
+	// 兼容前端两种字段名
+	project := reqBody.Project
+	if project == "" {
+		project = reqBody.Name
+	}
+	if project == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "项目名称不能为空"})
+		return
+	}
 
-	err := r.app.ComposeService.DeleteProject(reqBody.Project)
+	err := r.app.ComposeService.DeleteProject(project)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

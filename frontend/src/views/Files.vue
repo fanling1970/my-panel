@@ -20,10 +20,10 @@
       </div>
       <div class="path-bar">
         <el-icon class="path-home" title="主目录" @click="goHome"><HomeFilled /></el-icon>
-        <span class="path-seg" @click="goHome">host</span>
+        <span class="path-seg" @click="goHome">/</span>
         <template v-for="(seg, i) in pathSegments" :key="i">
-          <span class="path-sep">/</span>
           <span class="path-seg" @click="goToSegment(i)">{{ seg }}</span>
+          <span class="path-sep" v-if="i < pathSegments.length - 1">/</span>
         </template>
       </div>
     </div>
@@ -251,9 +251,9 @@ function goHome() {
   navigateTo('/host')
 }
 
-/** 复制文件/目录完整路径到剪贴板 */
+/** 复制文件/目录完整路径到剪贴板（对外显示路径，不含容器内 /host 前缀） */
 async function copyPath(row: any) {
-  const p = joinPath(row.name)
+  const p = joinPath(row.name).replace(/^\/host/, '') || '/'
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(p)

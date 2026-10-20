@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 
 	"rabbit-panel/model"
 	"rabbit-panel/repository"
@@ -54,8 +56,26 @@ func (s *ComposeService) ListProjects() ([]model.ComposeProject, error) {
 	}
 
 	result := []model.ComposeProject{}
-	for name, status := range projectSet {
-		result = append(result, model.ComposeProject{Name: name, Status: status})
+	for name := range projectSet {
+		p := s.projectFromContainers(name)
+		p.Description = s.fileRepo.GetComposeDescription(name)
+		p.CreatedAt = s.fileRepo.GetComposeCreatedAt(name)
+		// 汇总项目端口映射
+		portSet := map[string]bool{}
+		ports := []string{}
+		for _, c := range p.Containers {
+			for _, port := range strings.Split(c.Ports, ", ") {
+				port = strings.TrimSpace(port)
+				if port != "" && !portSet[port] {
+					portSet[port] = true
+					ports = append(ports, port)
+				}
+			}
+		}
+		p.Ports = strings.Join(ports, ", ")
+		// 列表不返回容器明细
+		p.Containers = nil
+		result = append(result, *p)
 	}
 	return result, nil
 }
@@ -66,8 +86,16 @@ func (s *ComposeService) FetchProjectStatus(name string) (*model.ComposeProject,
 }
 
 // CreateProject 创建 Compose 项目
-func (s *ComposeService) CreateProject(name, content string) error {
-	return s.fileRepo.CreateComposeProject(name, content)
+func (s *ComposeService) CreateProject(name, content, description string) error {
+	if err := s.fileRepo.CreateComposeProject(name, content); err != nil {
+		return err
+	}
+	return s.fileRepo.SaveComposeDescription(name, description)
+}
+
+// GetProjectDescription 获取项目描述
+func (s *ComposeService) GetProjectDescription(name string) string {
+	return s.fileRepo.GetComposeDescription(name)
 }
 
 // GetProjectFile 获取项目 Compose 文件
@@ -80,8 +108,23 @@ func (s *ComposeService) SaveProjectFile(name, content string) error {
 	return s.fileRepo.SaveComposeFile(name, content)
 }
 
-// DeleteProject 删除项目
+// DeleteProject 删除项目：先停止并删除项目容器，再删除 compose 文件目录
 func (s *ComposeService) DeleteProject(name string) error {
+	// 项目目录存在时，先执行 compose down 停止并删除容器/网络
+	if s.fileRepo.ComposeProjectExists(name) {
+		if err := s.ExecuteAction(name, "down", io.Discard); err != nil {
+			log.Printf("[Compose] 项目 %s down 失败，尝试强制删除容器: %v", name, err)
+		}
+	}
+	// 兜底：强制删除仍带该项目 label 的容器（down 失败或目录已丢失时）
+	containers, err := s.dockerRepo.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err == nil {
+		for _, c := range containers {
+			if c.Labels["com.docker.compose.project"] == name {
+				_ = s.dockerRepo.ContainerRemove(context.Background(), c.ID, container.RemoveOptions{Force: true})
+			}
+		}
+	}
 	return s.fileRepo.DeleteComposeProject(name)
 }
 

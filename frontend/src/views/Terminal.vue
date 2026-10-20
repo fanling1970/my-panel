@@ -212,8 +212,8 @@ async function testConnection() {
   try {
     await terminalApi.testConfig({ ...configForm })
     ElMessage.success('连接成功')
-  } catch (e: any) {
-    ElMessage.error(e?.message || '连接失败，请检查主机、端口、用户名和密码')
+  } catch {
+    // 具体错误信息已由请求拦截器弹出
   } finally {
     testing.value = false
   }
@@ -230,8 +230,8 @@ async function saveAndConnect() {
     if (connectAfterSave) {
       createHostSession()
     }
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+  } catch {
+    // 具体错误信息已由请求拦截器弹出
   } finally {
     saving.value = false
   }

@@ -209,7 +209,7 @@
     </el-drawer>
 
     <!-- 输出对话框 -->
-    <el-dialog v-model="showOutputDialog" title="执行输出" width="66%">
+    <el-dialog v-model="showOutputDialog" title="执行输出" width="44%">
       <pre class="output-box">{{ outputText || '（无输出）' }}</pre>
     </el-dialog>
   </div>

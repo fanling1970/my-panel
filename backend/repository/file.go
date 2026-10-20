@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -18,6 +19,9 @@ type IFileRepository interface {
 	GetComposeFile(name string) (string, error)
 	SaveComposeFile(name, content string) error
 	DeleteComposeProject(name string) error
+	SaveComposeDescription(name, description string) error
+	GetComposeDescription(name string) string
+	GetComposeCreatedAt(name string) string
 
 	// Registries
 	LoadRegistries() (map[string]*RegistryRecord, error)
@@ -109,7 +113,7 @@ func (r *FileRepository) ComposeProjectExists(name string) bool {
 	return err == nil && info.IsDir()
 }
 
-// CreateComposeProject 创建 Compose 项目
+// CreateComposeProject 创建 Compose 项目（已存在时覆盖更新，供编辑使用）
 func (r *FileRepository) CreateComposeProject(name, content string) error {
 	dir := r.GetComposeProjectDir(name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -118,13 +122,10 @@ func (r *FileRepository) CreateComposeProject(name, content string) error {
 
 	ymlPath := filepath.Join(dir, "docker-compose.yml")
 	yamlPath := filepath.Join(dir, "docker-compose.yaml")
-	if _, err := os.Stat(ymlPath); err == nil {
-		return nil
-	}
+	// 已有 .yaml 文件时覆盖原文件，保持文件名不变
 	if _, err := os.Stat(yamlPath); err == nil {
-		return nil
+		return os.WriteFile(yamlPath, []byte(content), 0644)
 	}
-
 	return os.WriteFile(ymlPath, []byte(content), 0644)
 }
 
@@ -159,6 +160,33 @@ func (r *FileRepository) SaveComposeFile(name, content string) error {
 func (r *FileRepository) DeleteComposeProject(name string) error {
 	dir := r.GetComposeProjectDir(name)
 	return os.RemoveAll(dir)
+}
+
+// SaveComposeDescription 保存项目描述到 description.txt
+func (r *FileRepository) SaveComposeDescription(name, description string) error {
+	dir := r.GetComposeProjectDir(name)
+	if _, err := os.Stat(dir); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "description.txt"), []byte(description), 0644)
+}
+
+// GetComposeDescription 读取项目描述，无描述时返回空字符串
+func (r *FileRepository) GetComposeDescription(name string) string {
+	data, err := os.ReadFile(filepath.Join(r.GetComposeProjectDir(name), "description.txt"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// GetComposeCreatedAt 返回项目目录创建时间（格式化字符串），不存在时返回空
+func (r *FileRepository) GetComposeCreatedAt(name string) string {
+	info, err := os.Stat(r.GetComposeProjectDir(name))
+	if err != nil {
+		return ""
+	}
+	return info.ModTime().Format("2006-01-02 15:04:05")
 }
 
 // === Registry Operations ===

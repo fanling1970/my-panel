@@ -7,31 +7,36 @@
         <el-button :loading="loading" @click="handleRefresh">刷新</el-button>
       </div>
     </div>
-    <el-input v-model="search" placeholder="搜索" style="max-width:320px;margin-bottom:16px" clearable>
+    <el-input v-model="search" placeholder="搜索" style="max-width:320px;margin-bottom:16px" clearable @input="page = 1">
       <template #prefix><el-icon><Search /></el-icon></template>
     </el-input>
-    <el-table v-loading="loading" :data="filteredProjects" stripe style="width:100%">
+    <el-table v-loading="loading" :data="pagedProjects" stripe style="width:100%">
       <el-table-column label="名称" min-width="150">
         <template #default="{ row }"><el-link type="primary" @click="openDetail(row)">{{ row.name }}</el-link></template>
       </el-table-column>
       <el-table-column label="描述" min-width="120">
         <template #default="{ row }"><span>{{ row.description || '-' }}</span></template>
       </el-table-column>
-      <el-table-column label="端口" min-width="150"><template #default><span>-</span></template></el-table-column>
+      <el-table-column label="端口" min-width="150">
+        <template #default="{ row }"><span class="mono">{{ row.ports || '-' }}</span></template>
+      </el-table-column>
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
           <el-tag v-if="row.status === 'running'" type="success" size="small" effect="plain">运行中</el-tag>
+          <el-tag v-else-if="row.status === 'partial'" type="warning" size="small" effect="plain">部分运行</el-tag>
           <el-tag v-else type="warning" size="small" effect="plain">等待部署</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="180"><template #default><span>-</span></template></el-table-column>
+      <el-table-column label="创建时间" width="180">
+        <template #default="{ row }"><span>{{ row.created_at || '-' }}</span></template>
+      </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <div style="display:flex;flex-direction:row;gap:4px">
             <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="primary" size="small">日志</el-button>
-            <el-button link type="primary" size="small">控制台</el-button>
-            <el-popconfirm title="确定删除？" @confirm="handleDeleteProject(row.name)">
+            <el-button link type="primary" size="small" @click="openLogs(row)">日志</el-button>
+            <el-button link type="primary" size="small" @click="goConsole">控制台</el-button>
+            <el-popconfirm title="删除将同时停止并删除该项目部署的容器，确定？" @confirm="handleDeleteProject(row.name)">
               <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
             </el-popconfirm>
           </div>
@@ -43,10 +48,18 @@
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
-        :total="projects.length"
+        :total="filteredProjects.length"
         layout="total, sizes, prev, pager, next, jumper"
       />
     </div>
+
+    <!-- 项目日志抽屉 -->
+    <el-drawer v-model="showLogs" :title="'日志 - ' + logsProject" size="55%">
+      <div style="margin-bottom:12px">
+        <el-button size="small" @click="loadLogs">刷新</el-button>
+      </div>
+      <pre class="logs-box">{{ logsText }}</pre>
+    </el-drawer>
 
     <!-- 创建任务 drawer -->
     <el-drawer v-model="showCreate" title="创建任务" size="60%" :close-on-click-modal="false">
@@ -123,14 +136,23 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
+
+const router = useRouter()
 
 const projects = ref<any[]>([])
 const search = ref('')
 const filteredProjects = computed(() => {
   if (!search.value) return projects.value
   return projects.value.filter(p => p.name.includes(search.value))
+})
+// 前端本地分页切片
+const pagedProjects = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filteredProjects.value.slice(start, start + pageSize.value)
 })
 const loading = ref(false)
 const page = ref(1)
@@ -149,6 +171,40 @@ const deployStatus = ref('等待中')
 const deployDone = ref(false)
 const runCmd = ref('')
 const form = ref({ name: '', description: '', source: 'text', yaml: '' })
+const showLogs = ref(false)
+const logsProject = ref('')
+const logsText = ref('')
+
+/** 控制台跳转到容器管理页 */
+function goConsole() {
+  router.push('/containers')
+}
+
+function openLogs(row: any) {
+  logsProject.value = row.name
+  showLogs.value = true
+  loadLogs()
+}
+
+/** 拉取 compose 项目日志（后端 SSE 一次性输出，汇总 data: 行） */
+async function loadLogs() {
+  logsText.value = '加载中...'
+  try {
+    const resp = await fetch('/api/compose/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project: logsProject.value, action: 'logs' }),
+    })
+    const raw = await resp.text()
+    const lines = raw
+      .split('\n')
+      .filter((l) => l.startsWith('data:'))
+      .map((l) => l.slice(5).replace(/^ /, ''))
+    logsText.value = lines.join('\n') || '（暂无日志）'
+  } catch {
+    logsText.value = '日志加载失败'
+  }
+}
 
 function autoName() {
   const m = form.value.yaml.match(/container_name:\s*(\S+)/)
@@ -161,7 +217,7 @@ function openCreate() {
 }
 
 async function openEdit(row: any) {
-  form.value = { name: row.name, description: '', source: 'text', yaml: '' }
+  form.value = { name: row.name, description: row.description || '', source: 'text', yaml: '' }
   try {
     const res = await request.get('/compose/file?project=' + row.name)
     form.value.yaml = res.data || ''
@@ -257,7 +313,7 @@ function handleRefresh() { fetchProjects() }
 async function handleCreate() {
   if (!form.value.name) return
   try {
-    await request.post('/compose/create', { name: form.value.name, content: form.value.yaml })
+    await request.post('/compose/create', { name: form.value.name, content: form.value.yaml, description: form.value.description })
     showCreate.value = false
     showDetail.value = true
     currentProject.value = form.value.name
@@ -291,7 +347,8 @@ async function handleDeploy() {
 
 async function handleDeleteProject(name: string) {
   try {
-    await request.post('/compose/delete', { name })
+    await request.post('/compose/delete', { project: name })
+    ElMessage.success('已删除项目及其容器')
     fetchProjects()
   } catch {}
 }
@@ -318,5 +375,19 @@ onMounted(() => { fetchProjects() })
 .header-actions {
   display: flex;
   gap: 10px;
+}
+.logs-box {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: 4px;
+  max-height: calc(100vh - 200px);
+  overflow: auto;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.mono {
+  font-family: monospace;
 }
 </style>
