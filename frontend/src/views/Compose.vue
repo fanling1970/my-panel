@@ -195,7 +195,6 @@ const consoleProject = ref('')
 const consoleEl = ref<HTMLElement | null>(null)
 let consoleTerm: Terminal | null = null
 let consoleWs: WebSocket | null = null
-let consoleFit: FitAddon | null = null
 
 /** 端口映射转链接：8855:80 -> http://当前主机:8855 */
 function portUrl(p: string): string {
@@ -234,7 +233,6 @@ function initConsole(containerName: string) {
   term.open(consoleEl.value)
   fit.fit()
   consoleTerm = term
-  consoleFit = fit
 
   const ws = new WebSocket(terminalApi.containerUrl(containerName))
   consoleWs = ws
@@ -271,7 +269,6 @@ function closeConsole() {
   consoleWs = null
   consoleTerm?.dispose()
   consoleTerm = null
-  consoleFit = null
 }
 
 function openLogs(row: any) {
