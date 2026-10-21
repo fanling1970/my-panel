@@ -74,6 +74,10 @@ func (s *ComposeService) ListProjects() ([]model.ComposeProject, error) {
 			}
 		}
 		p.Ports = strings.Join(ports, ", ")
+		if p.Ports == "" {
+			// host 网络等场景下兜底解析 compose 文件端口
+			p.Ports = parseComposePorts(s.fileRepo.GetComposeProjectDir(name))
+		}
 		// 列表不返回容器明细
 		p.Containers = nil
 		result = append(result, *p)
@@ -183,12 +187,18 @@ func (s *ComposeService) projectFromContainers(name string) *model.ComposeProjec
 	}
 
 	running := 0
+	paused := 0
+	// host 网络等场景下 docker 不返回端口，预先解析 compose 文件端口兜底
+	fallbackPorts := ""
 	for _, container := range containers {
 		if container.Labels["com.docker.compose.project"] != name {
 			continue
 		}
 		if container.State == "running" {
 			running++
+		}
+		if container.State == "paused" {
+			paused++
 		}
 		containerName := ""
 		if len(container.Names) > 0 {
@@ -204,22 +214,31 @@ func (s *ComposeService) projectFromContainers(name string) *model.ComposeProjec
 		if len(id) > 12 {
 			id = id[:12]
 		}
+		portsStr := strings.Join(ports, ", ")
+		if portsStr == "" {
+			if fallbackPorts == "" {
+				fallbackPorts = parseComposePorts(s.fileRepo.GetComposeProjectDir(name))
+			}
+			portsStr = fallbackPorts
+		}
 		project.Containers = append(project.Containers, model.ComposeContainer{
 			ID:      id,
 			Name:    containerName,
 			Service: container.Labels["com.docker.compose.service"],
 			State:   container.State,
 			Status:  container.Status,
-			Ports:   strings.Join(ports, ", "),
+			Ports:   portsStr,
 		})
 	}
 
 	total := len(project.Containers)
 	switch {
 	case total == 0:
-		project.Status = "stopped"
+		project.Status = "created"
 	case running == total:
 		project.Status = "running"
+	case paused == total:
+		project.Status = "paused"
 	case running > 0:
 		project.Status = "partial"
 	default:

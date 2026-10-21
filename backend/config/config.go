@@ -119,7 +119,7 @@ func (app *App) initServices() {
 	app.NodeService = service.NewNodeService(app.DockerRepo, app.CacheRepo, app.Mode, app.NodeSecret, app.NodeID, app.Host, app.Port)
 
 	// Core services
-	app.ContainerService = service.NewContainerService(app.DockerRepo, app.CacheRepo)
+	app.ContainerService = service.NewContainerService(app.DockerRepo, app.CacheRepo, app.FileRepo)
 	app.ImageService = service.NewImageService(app.DockerRepo, app.CacheRepo)
 	app.NetworkService = service.NewNetworkService(app.DockerRepo)
 	app.VolumeService = service.NewVolumeService(app.DockerRepo)

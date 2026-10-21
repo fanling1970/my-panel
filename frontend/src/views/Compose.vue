@@ -31,6 +31,8 @@
         <template #default="{ row }">
           <el-tag v-if="row.status === 'running'" type="success" size="small" effect="plain">运行中</el-tag>
           <el-tag v-else-if="row.status === 'partial'" type="warning" size="small" effect="plain">部分运行</el-tag>
+          <el-tag v-else-if="row.status === 'paused'" type="warning" size="small" effect="plain">已暂停</el-tag>
+          <el-tag v-else-if="row.status === 'stopped'" type="danger" size="small" effect="plain">已停止</el-tag>
           <el-tag v-else-if="row.status === 'unknown'" type="info" size="small" effect="plain">未知</el-tag>
           <el-tag v-else type="warning" size="small" effect="plain">等待部署</el-tag>
         </template>
@@ -106,23 +108,69 @@
 
     <!-- 任务管理 drawer -->
     <el-drawer v-model="showDetail" :title="'任务管理 ' + currentProject" size="60%" :close-on-click-modal="false">
-      <h4 style="margin-bottom:12px">容器管理</h4>
+      <h4 class="section-title"><el-icon><Setting /></el-icon> 容器管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
-        <el-button type="primary" :loading="deploying" @click="handleDeploy">{{ projectRunning ? '更新' : '启动' }}</el-button>
-        <el-button @click="handleAction('restart')">重启</el-button>
-        <el-button @click="handleAction('stop')">停止</el-button>
-        <el-button @click="handleAction('pause')">暂停</el-button>
-        <el-button @click="openConsole({ name: currentProject })">控制台</el-button>
-        <el-button @click="openLogs({ name: currentProject })">日志</el-button>
-        <el-popconfirm title="确认要删除容器？" @confirm="handleAction('down')">
-          <template #reference><el-button type="danger" plain>删除容器</el-button></template>
+        <el-button type="primary" :loading="deploying" @click="handleDeploy">{{ isRunning ? '更新' : '启动' }}</el-button>
+        <el-button :disabled="!hasContainers" @click="handleAction('restart')">重启</el-button>
+        <el-button :disabled="!isRunning && !isPaused" @click="handleAction('stop')">停止</el-button>
+        <el-button v-if="isPaused" @click="handleAction('unpause')">恢复</el-button>
+        <el-button v-else :disabled="!isRunning" @click="handleAction('pause')">暂停</el-button>
+        <el-button :disabled="!hasContainers" @click="openLogs({ name: currentProject })">日志</el-button>
+        <el-button :disabled="!isRunning" @click="openConsole({ name: currentProject })">控制台</el-button>
+        <el-popconfirm title="停止并删除该项目全部容器？" @confirm="handleAction('down')">
+          <template #reference>
+            <span><el-button type="danger" plain :disabled="!hasContainers">删除容器</el-button></span>
+          </template>
         </el-popconfirm>
       </div>
-      <h4 style="margin-bottom:12px">任务管理</h4>
-      <div style="display:flex;gap:12px;margin-bottom:12px">
+
+      <h4 class="section-title"><el-icon><Setting /></el-icon> 任务管理</h4>
+      <div style="display:flex;gap:12px;margin-bottom:24px">
         <el-button type="primary" @click="openEdit({name: currentProject})">编辑任务</el-button>
+        <el-button @click="openProjectDir">目录</el-button>
         <el-button @click="handleRefresh">刷新</el-button>
       </div>
+
+      <h4 class="section-title"><el-icon><List /></el-icon> 容器列表</h4>
+      <el-table :data="projectContainers" size="small" style="margin-bottom:24px">
+        <el-table-column label="标识" min-width="140">
+          <template #default="{ row }">{{ row.name }}</template>
+        </el-table-column>
+        <el-table-column label="端口" min-width="140">
+          <template #default="{ row }">
+            <template v-if="row.ports">
+              <template v-for="(p, i) in row.ports.split(', ')" :key="i">
+                <el-link type="primary" class="mono" :href="portUrl(p)" target="_blank" style="margin-right:6px">{{ p }}</el-link>
+              </template>
+            </template>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="110">
+          <template #default="{ row }">
+            <el-tag v-if="row.state === 'running'" type="success" size="small" effect="plain">运行中</el-tag>
+            <el-tag v-else-if="row.state === 'paused'" type="warning" size="small" effect="plain">已暂停</el-tag>
+            <el-tag v-else type="danger" size="small" effect="plain">已停止</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="110">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" :disabled="row.state !== 'running'" @click="openContainerConsole(row)">终端</el-button>
+            <el-button link type="primary" size="small" @click="openLogs({ name: currentProject })">日志</el-button>
+          </template>
+        </el-table-column>
+        <template #empty><el-empty description="暂无容器，请先启动项目" :image-size="60" /></template>
+      </el-table>
+
+      <h4 class="section-title"><el-icon><Plus /></el-icon> 环境变量</h4>
+      <el-table :data="envVars" size="small">
+        <el-table-column label="变量名" min-width="220">
+          <template #default="{ row }"><el-input :model-value="row.key" disabled /></template>
+        </el-table-column>
+        <el-table-column label="变量值" min-width="220">
+          <template #default="{ row }"><el-input :model-value="row.value" disabled /></template>
+        </el-table-column>
+      </el-table>
     </el-drawer>
 
     <!-- 部署进度弹窗 -->
@@ -149,13 +197,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { Search, Setting, List, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import request from '@/utils/request'
 import terminalApi from '@/api/terminal'
+
+const router = useRouter()
 
 const projects = ref<any[]>([])
 const search = ref('')
@@ -175,7 +226,13 @@ const showCreate = ref(false)
 const showDetail = ref(false)
 const showRunDrawer = ref(false)
 const currentProject = ref('')
-const projectRunning = ref(false)
+// 任务管理抽屉状态
+const projectStatus = ref('')
+const projectContainers = ref<any[]>([])
+const isRunning = computed(() => projectStatus.value === 'running' || projectStatus.value === 'partial')
+const isPaused = computed(() => projectStatus.value === 'paused')
+const hasContainers = computed(() => projectContainers.value.length > 0)
+const envVars = computed(() => [{ key: 'COMPOSE_PROJECT_NAME', value: currentProject.value }])
 const deploying = ref(false)
 const showDeployDialog = ref(false)
 const pullProgress = ref(0)
@@ -318,8 +375,35 @@ async function openEdit(row: any) {
 
 function openDetail(row: any) {
   currentProject.value = row.name
-  projectRunning.value = row.status === 'running'
   showDetail.value = true
+  fetchProjectDetail()
+}
+
+/** 拉取项目详情：状态 + 容器列表 */
+async function fetchProjectDetail() {
+  try {
+    const res: any = await request.get('/compose/status', { params: { project: currentProject.value } })
+    const data = res?.data || res || {}
+    projectStatus.value = data.status || 'unknown'
+    projectContainers.value = data.containers || []
+  } catch {
+    projectStatus.value = 'unknown'
+    projectContainers.value = []
+  }
+}
+
+/** 打开项目文件目录（文件管理页） */
+function openProjectDir() {
+  const row = projects.value.find((p: any) => p.name === currentProject.value)
+  const dir = `/host/mnt/mmcblk0p27/my-panel/compose_projects/${currentProject.value}`
+  router.push({ path: '/files', query: { path: row?.dir || dir } })
+}
+
+/** 打开单个容器的终端 */
+function openContainerConsole(row: any) {
+  consoleProject.value = row.name
+  showConsole.value = true
+  nextTick(() => initConsole(row.name))
 }
 
 async function handleAction(action: string) {
@@ -336,12 +420,10 @@ async function handleAction(action: string) {
     } else {
       ElMessage.success('操作完成')
     }
-    if (action === 'down' || action === 'stop') {
-      projectRunning.value = false
-    } else if (action === 'restart' || action === 'unpause') {
-      projectRunning.value = true
-    }
-    setTimeout(() => fetchProjects(), 1000)
+    setTimeout(() => {
+      fetchProjects()
+      fetchProjectDetail()
+    }, 1000)
   } catch {}
 }
 
@@ -436,8 +518,8 @@ async function handleDeploy() {
     deployProgress.value = 100
     deployStatus.value = '完成'
     deployDone.value = true
-    projectRunning.value = true
     fetchProjects()
+    fetchProjectDetail()
   } catch {
     pullStatus.value = '失败'
     deployStatus.value = '失败'
@@ -492,6 +574,13 @@ onMounted(() => { fetchProjects() })
   background: #1e1e1e;
   border-radius: 4px;
   padding: 8px;
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 15px;
 }
 .mono {
   font-family: monospace;

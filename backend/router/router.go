@@ -1920,30 +1920,36 @@ func (r *Router) handleImagesImport(c *gin.Context) {
 	defer f.Close()
 
 	ctx := context.Background()
-	// 记录导入前镜像 ID，用于导入后识别新增镜像
-	beforeIDs := map[string]bool{}
-	if imgs, err := r.app.DockerRepo.ImageList(ctx, types.ImageListOptions{All: true}); err == nil {
-		for _, img := range imgs {
-			beforeIDs[img.ID] = true
-		}
-	}
-
 	resp, err := r.app.DockerRepo.ImageLoad(ctx, f, false)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	// 解析加载输出，收集载入的镜像 ID（tar 无 RepoTags 时镜像为 <none>）
+	loadedIDs := map[string]bool{}
 	if resp.Body != nil {
-		// 读取并丢弃加载输出，确保加载完成
-		_, _ = io.Copy(io.Discard, resp.Body)
+		dec := json.NewDecoder(resp.Body)
+		for {
+			var m map[string]interface{}
+			if err := dec.Decode(&m); err != nil {
+				break
+			}
+			s, _ := m["stream"].(string)
+			if idx := strings.Index(s, "Loaded image ID: "); idx >= 0 {
+				id := strings.TrimSpace(s[idx+len("Loaded image ID: "):])
+				if id != "" {
+					loadedIDs[id] = true
+				}
+			}
+		}
 		resp.Body.Close()
 	}
 
-	// 若请求附带期望的镜像名（repo:tag），给导入后无标签的新镜像打标签
-	if name := strings.TrimSpace(c.PostForm("name")); name != "" {
+	// 若请求附带期望的镜像名（repo:tag），给载入后无标签的镜像打标签
+	if name := strings.TrimSpace(c.PostForm("name")); name != "" && len(loadedIDs) > 0 {
 		if imgs, err := r.app.DockerRepo.ImageList(ctx, types.ImageListOptions{All: true}); err == nil {
 			for _, img := range imgs {
-				if beforeIDs[img.ID] {
+				if !loadedIDs[img.ID] {
 					continue
 				}
 				untagged := len(img.RepoTags) == 0 || (len(img.RepoTags) == 1 && img.RepoTags[0] == "<none>:<none>")

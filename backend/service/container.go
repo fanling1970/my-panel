@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,14 +20,16 @@ import (
 // ContainerService 容器服务
 type ContainerService struct {
 	dockerRepo repository.IDockerRepository
-	cacheRepo repository.ICacheRepository
+	cacheRepo  repository.ICacheRepository
+	fileRepo   repository.IFileRepository
 }
 
 // NewContainerService 创建容器服务
-func NewContainerService(dr repository.IDockerRepository, cr repository.ICacheRepository) *ContainerService {
+func NewContainerService(dr repository.IDockerRepository, cr repository.ICacheRepository, fr repository.IFileRepository) *ContainerService {
 	return &ContainerService{
 		dockerRepo: dr,
-		cacheRepo: cr,
+		cacheRepo:  cr,
+		fileRepo:   fr,
 	}
 }
 
@@ -220,6 +225,25 @@ func (s *ContainerService) CheckUpdates(ctx context.Context) ([]ContainerUpdateS
 // convertContainers 转换 Docker 容器类型到模型
 func (s *ContainerService) convertContainers(containers []types.Container) []model.ContainerInfo {
 	result := make([]model.ContainerInfo, 0, len(containers))
+	// compose 项目元数据缓存（描述 + 端口），避免重复读文件
+	type composeMeta struct {
+		desc  string
+		ports string
+	}
+	metaCache := map[string]*composeMeta{}
+	getMeta := func(project string) *composeMeta {
+		if m, ok := metaCache[project]; ok {
+			return m
+		}
+		m := &composeMeta{}
+		if s.fileRepo != nil {
+			m.desc = s.fileRepo.GetComposeDescription(project)
+			m.ports = parseComposePorts(s.fileRepo.GetComposeProjectDir(project))
+		}
+		metaCache[project] = m
+		return m
+	}
+
 	for _, c := range containers {
 		name := ""
 		if len(c.Names) > 0 {
@@ -238,9 +262,37 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 		}
 
 		description := ""
+		project := ""
 		if c.Labels != nil {
 			if d, ok := c.Labels["my-panel.description"]; ok {
 				description = d
+			}
+			project = c.Labels["com.docker.compose.project"]
+		}
+		// compose 项目容器：描述/端口兜底读取项目元数据（host 网络时 Ports 为空）
+		if project != "" {
+			m := getMeta(project)
+			if description == "" {
+				description = m.desc
+			}
+			if ports == "" {
+				ports = m.ports
+			}
+		}
+		// 端口仍为空且是 host 网络：用镜像 ExposedPorts 兜底显示
+		if ports == "" {
+			if info, err := s.dockerRepo.ContainerInspect(context.Background(), c.ID); err == nil {
+				if info.HostConfig != nil && info.HostConfig.NetworkMode.IsHost() && info.Config != nil {
+					var eps []string
+					for ep := range info.Config.ExposedPorts {
+						port := strings.SplitN(string(ep), "/", 2)[0]
+						if port != "" {
+							eps = append(eps, port+":"+port)
+						}
+					}
+					sort.Strings(eps)
+					ports = strings.Join(eps, ", ")
+				}
 			}
 		}
 
@@ -256,4 +308,34 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 		})
 	}
 	return result
+}
+
+// parseComposePorts 从项目 compose 文件解析端口映射（"宿主端口:容器端口"），用于 host 网络等场景
+func parseComposePorts(projectDir string) string {
+	data, err := os.ReadFile(resolveComposeFile(projectDir))
+	if err != nil {
+		return ""
+	}
+	var ports []string
+	inPorts := false
+	portRe := regexp.MustCompile(`["']?(\d+):(\d+)["']?`)
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if strings.HasPrefix(trimmed, "ports:") {
+			inPorts = true
+			continue
+		}
+		if inPorts {
+			// 缩进回到 service 级别说明 ports 段结束
+			if !strings.HasPrefix(trimmed, "-") && trimmed != "" && indent <= 4 {
+				inPorts = false
+				continue
+			}
+			if m := portRe.FindStringSubmatch(trimmed); m != nil {
+				ports = append(ports, m[1]+":"+m[2])
+			}
+		}
+	}
+	return strings.Join(ports, ", ")
 }

@@ -115,10 +115,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, ArrowRight, ArrowUp, Refresh, HomeFilled } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
+const route = useRoute()
 const currentPath = ref('/host')
 // 导航历史（后退/前进）
 const historyStack = ref<string[]>(['/host'])
@@ -379,7 +381,15 @@ function formatSize(size: number) {
   return (size / 1024 / 1024).toFixed(1) + ' MB'
 }
 
-onMounted(loadFiles)
+onMounted(() => {
+  // 支持 /files?path=xxx 直达指定目录（如 Compose 任务管理的"目录"按钮）
+  const q = route.query.path
+  if (typeof q === 'string' && q.startsWith('/host')) {
+    navigateTo(q)
+  } else {
+    loadFiles()
+  }
+})
 </script>
 
 <style scoped>
