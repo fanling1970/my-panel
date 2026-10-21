@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 
 	"rabbit-panel/model"
 	"rabbit-panel/repository"
@@ -279,21 +280,9 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 				ports = m.ports
 			}
 		}
-		// 端口仍为空且是 host 网络：用镜像 ExposedPorts 兜底显示
+		// 端口仍为空且是 host 网络：用 ExposedPorts / 镜像元数据 / PORT 环境变量兜底显示
 		if ports == "" {
-			if info, err := s.dockerRepo.ContainerInspect(context.Background(), c.ID); err == nil {
-				if info.HostConfig != nil && info.HostConfig.NetworkMode.IsHost() && info.Config != nil {
-					var eps []string
-					for ep := range info.Config.ExposedPorts {
-						port := strings.SplitN(string(ep), "/", 2)[0]
-						if port != "" {
-							eps = append(eps, port+":"+port)
-						}
-					}
-					sort.Strings(eps)
-					ports = strings.Join(eps, ", ")
-				}
-			}
+			ports = s.hostNetworkPorts(c.ID)
 		}
 
 		result = append(result, model.ContainerInfo{
@@ -308,6 +297,56 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 		})
 	}
 	return result
+}
+
+// hostNetworkPorts 为 host 网络的容器推断端口：
+// 容器创建时固化的 ExposedPorts → 镜像 ExposedPorts → 环境变量 PORT（如 my-panel）
+func (s *ContainerService) hostNetworkPorts(containerID string) string {
+	ctx := context.Background()
+	info, err := s.dockerRepo.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return ""
+	}
+	if info.HostConfig == nil || !info.HostConfig.NetworkMode.IsHost() {
+		return ""
+	}
+
+	formatPorts := func(exposed nat.PortSet) string {
+		if len(exposed) == 0 {
+			return ""
+		}
+		var eps []string
+		for ep := range exposed {
+			port := strings.SplitN(string(ep), "/", 2)[0]
+			if port != "" {
+				eps = append(eps, port+":"+port)
+			}
+		}
+		sort.Strings(eps)
+		return strings.Join(eps, ", ")
+	}
+
+	// 1. 容器自身配置
+	if info.Config != nil {
+		if p := formatPorts(info.Config.ExposedPorts); p != "" {
+			return p
+		}
+		// 3. 环境变量 PORT（容器创建早于镜像 EXPOSE 声明时的兜底）
+		for _, env := range info.Config.Env {
+			if strings.HasPrefix(env, "PORT=") {
+				if port := strings.TrimSpace(strings.TrimPrefix(env, "PORT=")); port != "" {
+					return port + ":" + port
+				}
+			}
+		}
+	}
+	// 2. 镜像元数据（容器配置中未固化 ExposedPorts 时）
+	if img, _, err := s.dockerRepo.ImageInspectWithRaw(ctx, info.Image); err == nil && img.Config != nil {
+		if p := formatPorts(img.Config.ExposedPorts); p != "" {
+			return p
+		}
+	}
+	return ""
 }
 
 // parseComposePorts 从项目 compose 文件解析端口映射（"宿主端口:容器端口"），用于 host 网络等场景

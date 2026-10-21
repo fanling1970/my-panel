@@ -286,7 +286,9 @@ async function handleExport(row: any) {
     await ElMessageBox.confirm('导出镜像文件后可通过面板导入恢复，是否确认？', '提示')
   } catch { return }
   const name = (row.name + '_' + row.tag).replace(/[^a-zA-Z0-9._-]/g, '_') || row.id.slice(0, 12)
-  window.open('/api/images/export?id=' + row.id + '&name=' + encodeURIComponent(name), '_blank')
+  // 导出时传入 repo:tag 而非 ID，否则 tar 中不包含镜像名，重新导入后只剩 <none>
+  const ref = row.name && row.tag && row.tag !== '<none>' ? `${row.name}:${row.tag}` : row.id
+  window.open('/api/images/export?id=' + row.id + '&ref=' + encodeURIComponent(ref) + '&name=' + encodeURIComponent(name), '_blank')
 }
 
 // Fetch images on mount

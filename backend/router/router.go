@@ -1892,10 +1892,15 @@ func (r *Router) handleImagesPrune(c *gin.Context) {
 func (r *Router) handleImagesExport(c *gin.Context) {
 	id := c.Query("id")
 	name := c.Query("name")
+	// 优先使用 repo:tag 导出，Docker 才会把镜像名写入 tar（否则重新导入后只剩 <none>）
+	ref := strings.TrimSpace(c.Query("ref"))
+	if ref == "" {
+		ref = id
+	}
 	if name == "" {
 		name = id[:12]
 	}
-	rc, err := r.app.DockerRepo.ImageSave(context.Background(), []string{id})
+	rc, err := r.app.DockerRepo.ImageSave(context.Background(), []string{ref})
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
