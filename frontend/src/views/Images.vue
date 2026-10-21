@@ -98,25 +98,34 @@
     <!-- 导入镜像 Drawer -->
     <el-drawer v-model="showImportDialog" title="导入镜像" size="50%">
       <h4 style="margin-bottom:12px;font-size:16px">本地镜像</h4>
-      <el-upload action="/api/images/import" :show-file-list="true" accept=".tar" drag style="margin-bottom:24px">
+      <el-upload action="/api/images/import" :data="uploadData" :show-file-list="true" accept=".tar" drag
+        style="margin-bottom:24px" :on-change="handleImportFileChange"
+        :on-success="handleImportSuccess" :on-error="handleImportError" :headers="uploadHeaders">
         <div style="padding:24px">
           <div style="font-size:32px;color:#1d6fd8;margin-bottom:8px">⬆</div>
           <div>导入镜像包，最多支持同时上传 10 个。（仅限导出镜像生成的 .tar 文件）</div>
         </div>
       </el-upload>
       <h4 style="margin-bottom:12px;font-size:16px">远程地址</h4>
-      <el-input v-model="remoteImportUrl" placeholder="输入远程镜像地址导入" />
+      <div style="display:flex;gap:8px">
+        <el-input v-model="remoteImportUrl" placeholder="输入远程镜像地址导入" style="flex:1" @keyup.enter="handleImportUrl" />
+        <el-button type="primary" :loading="importingUrl" :disabled="!remoteImportUrl.trim()" @click="handleImportUrl">导入</el-button>
+      </div>
+      <template #footer>
+        <el-button @click="showImportDialog = false">取消</el-button>
+        <el-button type="primary" @click="showImportDialog = false">确定</el-button>
+      </template>
     </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useImageStore, type SortField } from '@/stores/images'
 import BuildImageDialog from '@/components/image/BuildImageDialog.vue'
-import request from '@/utils/request'
+import request, { getToken } from '@/utils/request'
 import registryApi from '@/api/registry'
 import type { RegistryInfo } from '@/types'
 
@@ -134,6 +143,54 @@ const remoteImportUrl = ref('')
 const pulling = ref(false)
 const pullProgress = ref(0)
 const registries = ref<RegistryInfo[]>([])
+const importingUrl = ref(false)
+
+/** 上传附加参数：从文件名推断镜像 repo:tag（导出文件名规则 repo_tag.tar，/ 被浏览器转为 _） */
+const uploadData = ref<{ name: string }>({ name: '' })
+const uploadHeaders = computed(() => ({ Authorization: `Bearer ${getToken()}` }))
+
+/** 从 tar 文件名推断镜像名，如 cqshushu_iptv-spider_latest.tar -> cqshushu/iptv-spider:latest */
+function inferImageName(filename: string): string {
+  const base = filename.replace(/\.tar$/i, '')
+  const tagIdx = base.lastIndexOf('_')
+  if (tagIdx <= 0) return ''
+  const tag = base.slice(tagIdx + 1)
+  let repo = base.slice(0, tagIdx)
+  const slashIdx = repo.indexOf('_')
+  if (slashIdx > 0) repo = repo.slice(0, slashIdx) + '/' + repo.slice(slashIdx + 1)
+  if (!/^[a-z0-9]+([._-][a-z0-9]+)*(\/[a-z0-9]+([._-][a-z0-9]+)*)*$/.test(repo)) return ''
+  if (!/^[\w][\w.-]{0,127}$/.test(tag)) return ''
+  return `${repo}:${tag}`
+}
+
+function handleImportFileChange(file: any) {
+  uploadData.value = { name: inferImageName(file?.name || '') }
+}
+
+function handleImportSuccess() {
+  ElMessage.success('导入成功')
+  imageStore.fetchImages(true)
+}
+
+function handleImportError() {
+  ElMessage.error('导入失败，请确认文件为 docker save 导出的 .tar 包')
+}
+
+/** 从远程地址导入镜像 */
+async function handleImportUrl() {
+  const name = remoteImportUrl.value.trim()
+  if (!name) return
+  importingUrl.value = true
+  try {
+    await request.post('/images/pull', { name })
+    ElMessage.success('导入完成')
+    remoteImportUrl.value = ''
+    showImportDialog.value = false
+    imageStore.fetchImages(true)
+  } catch { /* 错误已由拦截器提示 */ } finally {
+    importingUrl.value = false
+  }
+}
 
 /** 加载自定义镜像仓库列表 */
 async function loadRegistries() {

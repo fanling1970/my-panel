@@ -26,6 +26,11 @@ export const terminalApi = {
     return buildWsUrl('/api/terminal/ssh', { cols: String(cols), rows: String(rows) })
   },
 
+  /** 容器终端 WebSocket 地址 */
+  containerUrl(containerId: string): string {
+    return buildWsUrl('/api/containers/terminal', { id: containerId })
+  },
+
   /** 获取宿主机 SSH 连接配置，未配置时返回 null */
   async getConfig(): Promise<SSHHostConfig | null> {
     const res = await request.get<SSHHostConfig | null>('/terminal/ssh-config')
@@ -34,12 +39,12 @@ export const terminalApi = {
 
   /** 保存宿主机 SSH 连接配置 */
   async saveConfig(cfg: SSHHostConfig): Promise<void> {
-    await request.post('/terminal/ssh-config', cfg)
+    await request.post('/terminal/ssh-config', cfg, { suppressErrorMessage: true })
   },
 
   /** 测试 SSH 连接 */
   async testConfig(cfg: SSHHostConfig): Promise<void> {
-    await request.post('/terminal/ssh-test', cfg)
+    await request.post('/terminal/ssh-test', cfg, { suppressErrorMessage: true })
   },
 }
 

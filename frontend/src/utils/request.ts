@@ -87,6 +87,10 @@ request.interceptors.response.use(
     } else if (status && status >= 500) {
       // 尝试获取后端返回的错误信息
       const errorMsg = getErrorMessage(data)
+      // 容器重建/删除后旧ID轮询导致的错误静默忽略
+      if (errorMsg && errorMsg.includes('No such container')) {
+        return Promise.reject(error)
+      }
       ElMessage.error(errorMsg || '服务器错误，请稍后重试')
     } else if (status === 400 || status === 404 || status === 409) {
       // 客户端错误，显示后端返回的具体信息

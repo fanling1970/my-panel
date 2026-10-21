@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -77,6 +78,10 @@ func (s *ComposeService) ListProjects() ([]model.ComposeProject, error) {
 		p.Containers = nil
 		result = append(result, *p)
 	}
+	// 按项目名称英文字母排序
+	sort.Slice(result, func(i, j int) bool {
+		return strings.ToLower(result[i].Name) < strings.ToLower(result[j].Name)
+	})
 	return result, nil
 }
 
@@ -128,7 +133,7 @@ func (s *ComposeService) DeleteProject(name string) error {
 	return s.fileRepo.DeleteComposeProject(name)
 }
 
-// ExecuteAction 执行 Compose 操作（up, down, restart, pull, logs）
+// ExecuteAction 执行 Compose 操作（up, down, restart, stop, pause, unpause, pull, logs）
 func (s *ComposeService) ExecuteAction(name, action string, writer io.Writer) error {
 	dir := s.fileRepo.GetComposeProjectDir(name)
 	composeFile := filepath.Base(resolveComposeFile(dir))
@@ -141,6 +146,12 @@ func (s *ComposeService) ExecuteAction(name, action string, writer io.Writer) er
 		cmd = exec.Command("docker", "compose", "-f", composeFile, "down")
 	case "restart":
 		cmd = exec.Command("docker", "compose", "-f", composeFile, "restart")
+	case "stop":
+		cmd = exec.Command("docker", "compose", "-f", composeFile, "stop")
+	case "pause":
+		cmd = exec.Command("docker", "compose", "-f", composeFile, "pause")
+	case "unpause":
+		cmd = exec.Command("docker", "compose", "-f", composeFile, "unpause")
 	case "pull":
 		cmd = exec.Command("docker", "compose", "-f", composeFile, "pull")
 	case "logs":

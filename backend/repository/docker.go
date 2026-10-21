@@ -46,6 +46,7 @@ type IDockerRepository interface {
 	ImagesPrune(ctx context.Context) (types.ImagesPruneReport, error)
 	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
+	ImageTag(ctx context.Context, source, target string) error
 
 	// === Network Operations ===
 	NetworkList(ctx context.Context, opts types.NetworkListOptions) ([]types.NetworkResource, error)
@@ -194,6 +195,10 @@ func (r *DockerRepository) ImageSave(ctx context.Context, images []string) (io.R
 
 func (r *DockerRepository) ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error) {
 	return r.client.ImageLoad(ctx, input, quiet)
+}
+
+func (r *DockerRepository) ImageTag(ctx context.Context, source, target string) error {
+	return r.client.ImageTag(ctx, source, target)
 }
 
 // === Network Operations ===

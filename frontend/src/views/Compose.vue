@@ -18,12 +18,20 @@
         <template #default="{ row }"><span>{{ row.description || '-' }}</span></template>
       </el-table-column>
       <el-table-column label="端口" min-width="150">
-        <template #default="{ row }"><span class="mono">{{ row.ports || '-' }}</span></template>
+        <template #default="{ row }">
+          <template v-if="row.ports">
+            <template v-for="(p, i) in row.ports.split(', ')" :key="i">
+              <el-link type="primary" class="mono" :href="portUrl(p)" target="_blank" style="margin-right:6px">{{ p }}</el-link>
+            </template>
+          </template>
+          <span v-else>-</span>
+        </template>
       </el-table-column>
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
           <el-tag v-if="row.status === 'running'" type="success" size="small" effect="plain">运行中</el-tag>
           <el-tag v-else-if="row.status === 'partial'" type="warning" size="small" effect="plain">部分运行</el-tag>
+          <el-tag v-else-if="row.status === 'unknown'" type="info" size="small" effect="plain">未知</el-tag>
           <el-tag v-else type="warning" size="small" effect="plain">等待部署</el-tag>
         </template>
       </el-table-column>
@@ -35,7 +43,7 @@
           <div style="display:flex;flex-direction:row;gap:4px">
             <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
             <el-button link type="primary" size="small" @click="openLogs(row)">日志</el-button>
-            <el-button link type="primary" size="small" @click="goConsole">控制台</el-button>
+            <el-button link type="primary" size="small" @click="openConsole(row)">控制台</el-button>
             <el-popconfirm title="删除将同时停止并删除该项目部署的容器，确定？" @confirm="handleDeleteProject(row.name)">
               <template #reference><el-button type="danger" size="small" link>删除</el-button></template>
             </el-popconfirm>
@@ -59,6 +67,11 @@
         <el-button size="small" @click="loadLogs">刷新</el-button>
       </div>
       <pre class="logs-box">{{ logsText }}</pre>
+    </el-drawer>
+
+    <!-- 项目控制台抽屉 -->
+    <el-drawer v-model="showConsole" :title="'控制台 - ' + consoleProject" size="60%" @close="closeConsole">
+      <div ref="consoleEl" class="console-box"></div>
     </el-drawer>
 
     <!-- 创建任务 drawer -->
@@ -99,8 +112,8 @@
         <el-button @click="handleAction('restart')">重启</el-button>
         <el-button @click="handleAction('stop')">停止</el-button>
         <el-button @click="handleAction('pause')">暂停</el-button>
-        <el-button>控制台</el-button>
-        <el-button @click="handleAction('logs')">日志</el-button>
+        <el-button @click="openConsole({ name: currentProject })">控制台</el-button>
+        <el-button @click="openLogs({ name: currentProject })">日志</el-button>
         <el-popconfirm title="确认要删除容器？" @confirm="handleAction('down')">
           <template #reference><el-button type="danger" plain>删除容器</el-button></template>
         </el-popconfirm>
@@ -135,13 +148,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import '@xterm/xterm/css/xterm.css'
 import request from '@/utils/request'
-
-const router = useRouter()
+import terminalApi from '@/api/terminal'
 
 const projects = ref<any[]>([])
 const search = ref('')
@@ -175,9 +189,89 @@ const showLogs = ref(false)
 const logsProject = ref('')
 const logsText = ref('')
 
-/** 控制台跳转到容器管理页 */
-function goConsole() {
-  router.push('/containers')
+// 控制台终端状态
+const showConsole = ref(false)
+const consoleProject = ref('')
+const consoleEl = ref<HTMLElement | null>(null)
+let consoleTerm: Terminal | null = null
+let consoleWs: WebSocket | null = null
+let consoleFit: FitAddon | null = null
+
+/** 端口映射转链接：8855:80 -> http://当前主机:8855 */
+function portUrl(p: string): string {
+  const hostPort = p.trim().split(':')[0] ?? ''
+  return `${window.location.protocol}//${window.location.hostname}:${hostPort}`
+}
+
+/** 打开项目控制台：连接项目第一个运行中容器的终端 */
+async function openConsole(row: any) {
+  consoleProject.value = row.name
+  let containers: any[] = []
+  try {
+    const res: any = await request.get('/compose/status', { params: { project: row.name } })
+    containers = res?.data?.containers || res?.containers || []
+  } catch {}
+  const target = containers.find((c: any) => c.state === 'running') || containers[0]
+  if (!target) {
+    ElMessage.warning('该项目暂无容器，请先启动')
+    return
+  }
+  showConsole.value = true
+  nextTick(() => initConsole(target.name))
+}
+
+function initConsole(containerName: string) {
+  if (!consoleEl.value) return
+  closeConsole()
+  const term = new Terminal({
+    cursorBlink: true,
+    fontSize: 14,
+    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    theme: { background: '#1e1e1e', foreground: '#d4d4d4' },
+  })
+  const fit = new FitAddon()
+  term.loadAddon(fit)
+  term.open(consoleEl.value)
+  fit.fit()
+  consoleTerm = term
+  consoleFit = fit
+
+  const ws = new WebSocket(terminalApi.containerUrl(containerName))
+  consoleWs = ws
+  term.onData((d) => { if (ws.readyState === WebSocket.OPEN) ws.send(d) })
+  term.onResize(({ cols, rows }) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }))
+  })
+  ws.onopen = () => {
+    setTimeout(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
+      }
+    }, 150)
+    term.focus()
+  }
+  ws.onmessage = (e) => {
+    if (e.data instanceof Blob) {
+      e.data.text().then((t: string) => term.write(t))
+    } else if (typeof e.data === 'string') {
+      try {
+        const m = JSON.parse(e.data)
+        if (m.type === 'error') {
+          term.write(`\r\n\x1b[31m${m.data}\x1b[0m\r\n`)
+          return
+        }
+      } catch { /* 普通文本输出 */ }
+      term.write(e.data)
+    }
+  }
+}
+
+function closeConsole() {
+  consoleWs?.close()
+  consoleWs = null
+  consoleTerm?.dispose()
+  consoleTerm = null
+  consoleFit = null
 }
 
 function openLogs(row: any) {
@@ -233,13 +327,22 @@ function openDetail(row: any) {
 
 async function handleAction(action: string) {
   try {
-    await fetch('/api/compose/action', {
+    const resp = await fetch('/api/compose/action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ project: currentProject.value, action })
     })
-    if (action === 'down') {
+    const raw = await resp.text()
+    // SSE 响应中检查错误输出
+    if (raw.includes('exit status') || raw.includes('"error"')) {
+      ElMessage.error('操作失败，请查看日志')
+    } else {
+      ElMessage.success('操作完成')
+    }
+    if (action === 'down' || action === 'stop') {
       projectRunning.value = false
+    } else if (action === 'restart' || action === 'unpause') {
+      projectRunning.value = true
     }
     setTimeout(() => fetchProjects(), 1000)
   } catch {}
@@ -386,6 +489,12 @@ onMounted(() => { fetchProjects() })
   font-size: 13px;
   white-space: pre-wrap;
   word-break: break-all;
+}
+.console-box {
+  height: calc(100vh - 140px);
+  background: #1e1e1e;
+  border-radius: 4px;
+  padding: 8px;
 }
 .mono {
   font-family: monospace;

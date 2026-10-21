@@ -1918,10 +1918,43 @@ func (r *Router) handleImagesImport(c *gin.Context) {
 		return
 	}
 	defer f.Close()
-	_, err = r.app.DockerRepo.ImageLoad(context.Background(), f, false)
+
+	ctx := context.Background()
+	// 记录导入前镜像 ID，用于导入后识别新增镜像
+	beforeIDs := map[string]bool{}
+	if imgs, err := r.app.DockerRepo.ImageList(ctx, types.ImageListOptions{All: true}); err == nil {
+		for _, img := range imgs {
+			beforeIDs[img.ID] = true
+		}
+	}
+
+	resp, err := r.app.DockerRepo.ImageLoad(ctx, f, false)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
+	}
+	if resp.Body != nil {
+		// 读取并丢弃加载输出，确保加载完成
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+
+	// 若请求附带期望的镜像名（repo:tag），给导入后无标签的新镜像打标签
+	if name := strings.TrimSpace(c.PostForm("name")); name != "" {
+		if imgs, err := r.app.DockerRepo.ImageList(ctx, types.ImageListOptions{All: true}); err == nil {
+			for _, img := range imgs {
+				if beforeIDs[img.ID] {
+					continue
+				}
+				untagged := len(img.RepoTags) == 0 || (len(img.RepoTags) == 1 && img.RepoTags[0] == "<none>:<none>")
+				if untagged {
+					if err := r.app.DockerRepo.ImageTag(ctx, img.ID, name); err != nil {
+						log.Printf("[Images] 给导入镜像打标签 %s 失败: %v", name, err)
+					}
+					break
+				}
+			}
+		}
 	}
 	c.JSON(200, gin.H{"status": "success"})
 }

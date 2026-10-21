@@ -76,6 +76,15 @@
           <el-input-number v-model="configForm.port" :min="1" :max="65535" style="width:100%" />
         </el-form-item>
       </el-form>
+      <el-alert v-if="configError" type="error" :closable="false" style="margin-bottom:8px">
+        <template #title>
+          <div>{{ configError }}</div>
+          <div style="margin-top:6px;font-size:12px">
+            排查建议：确认宿主机已开启 SSH 服务且端口正确；面板运行在容器内，需保证容器网络可访问宿主机
+            {{ configForm.host }}:{{ configForm.port }}（可尝试宿主机局域网 IP 或改用 host 网络模式部署面板）。
+          </div>
+        </template>
+      </el-alert>
       <template #footer>
         <el-button @click="showConfig = false">取消</el-button>
         <el-button :loading="testing" @click="testConnection">连接测试</el-button>
@@ -118,6 +127,7 @@ const hostConfig = ref<SSHHostConfig | null>(null)
 const showConfig = ref(false)
 const testing = ref(false)
 const saving = ref(false)
+const configError = ref('')
 /** 保存后是否自动打开终端 */
 let connectAfterSave = false
 
@@ -206,14 +216,20 @@ function validateConfigForm(): boolean {
   return true
 }
 
+/** 从 axios 错误中提取后端返回的错误信息 */
+function extractError(e: any): string {
+  return e?.response?.data?.error || e?.message || '连接失败'
+}
+
 async function testConnection() {
   if (!validateConfigForm()) return
   testing.value = true
+  configError.value = ''
   try {
     await terminalApi.testConfig({ ...configForm })
     ElMessage.success('连接成功')
-  } catch {
-    // 具体错误信息已由请求拦截器弹出
+  } catch (e: any) {
+    configError.value = extractError(e)
   } finally {
     testing.value = false
   }
@@ -222,6 +238,7 @@ async function testConnection() {
 async function saveAndConnect() {
   if (!validateConfigForm()) return
   saving.value = true
+  configError.value = ''
   try {
     await terminalApi.saveConfig({ ...configForm })
     hostConfig.value = { ...configForm }
@@ -230,8 +247,8 @@ async function saveAndConnect() {
     if (connectAfterSave) {
       createHostSession()
     }
-  } catch {
-    // 具体错误信息已由请求拦截器弹出
+  } catch (e: any) {
+    configError.value = extractError(e)
   } finally {
     saving.value = false
   }
