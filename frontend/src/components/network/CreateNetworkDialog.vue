@@ -61,7 +61,7 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleClose">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="loading" @click="handleSubmit">
+        <el-button type="primary" class="btn-primary-solid" :loading="loading" @click="handleSubmit">
           {{ t('common.create') }}
         </el-button>
       </div>

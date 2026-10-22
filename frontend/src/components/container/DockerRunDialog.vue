@@ -92,6 +92,7 @@
       </el-button>
       <el-button
         type="primary"
+        class="btn-primary-solid"
         :loading="isExecuting"
         :disabled="!command.trim()"
         @click="handleExecute"

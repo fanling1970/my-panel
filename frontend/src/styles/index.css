@@ -91,7 +91,62 @@ html.dark ::-webkit-scrollbar-thumb:hover { background: #606266; }
   color: #1677ff !important;
 }
 a, .container-name { color: #1677ff !important; }
-a:hover { color: #4096ff; }
+
+/* ========= 全项目蓝色文字统一 #1677ff ========= */
+/* el-link primary（文件管理名称、compose名称、网络/存储卷/镜像ID 等） */
+.el-link.el-link--primary {
+  --el-link-text-color: #1677ff !important;
+  --el-link-hover-text-color: #4096ff !important;
+  color: #1677ff !important;
+}
+/* el-button link/text primary（编辑/日志/控制台/终端/打开/复制路径/重命名 等操作列） */
+.el-button.is-link.el-button--primary,
+.el-button.is-link.is-primary,
+.el-button.is-text.el-button--primary,
+.el-button.is-text.is-primary {
+  --el-button-text-color: #1677ff !important;
+  --el-button-hover-text-color: #4096ff !important;
+  color: #1677ff !important;
+}
+/* el-tag primary（网络驱动、存储卷驱动 等） */
+.el-tag.el-tag--primary {
+  --el-tag-text-color: #1677ff !important;
+  color: #1677ff !important;
+}
+/* el-select / el-input focus 边框、el-pagination 激活页码 */
+.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: #1677ff !important;
+}
+/* el-radio / el-checkbox / el-switch 激活态 */
+.el-radio__input.is-checked .el-radio__inner {
+  border-color: #1677ff !important;
+  background: #1677ff !important;
+}
+.el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+}
+.el-switch.is-checked .el-switch__core {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+}
+/* el-tab 激活项 */
+.el-tabs__item.is-active, .el-tabs__item:hover {
+  color: #1677ff !important;
+}
+.el-tabs__active-bar {
+  background-color: #1677ff !important;
+}
+/* el-menu 激活项 */
+.el-menu-item.is-active {
+  color: #1677ff !important;
+}
+/* el-step / el-progress / el-slider 等 */
+.el-progress-bar__inner {
+  background-color: #1677ff !important;
+}
+/* 全局普通链接 hover */
+a:hover { color: #4096ff !important; }
 
 /* ========= 按钮统一（参考 1Panel 风格） ========= */
 /* 主按钮：蓝实底，用于"创建/查询/启动/控制台/编辑任务" */

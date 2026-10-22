@@ -70,6 +70,7 @@
         </el-button>
         <el-button
           type="primary"
+          class="btn-primary-solid"
           :loading="building"
           @click="handleBuild"
         >

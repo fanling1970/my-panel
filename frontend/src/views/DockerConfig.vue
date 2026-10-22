@@ -237,6 +237,7 @@
         <div class="action-buttons">
           <el-button
             type="primary"
+            class="btn-primary-solid"
             size="large"
             :loading="dockerConfigStore.saving"
             @click="handleSave"

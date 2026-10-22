@@ -34,7 +34,7 @@
       </el-table-column>
       <el-table-column prop="tag" label="标签" min-width="200">
         <template #default="{ row }">
-          <el-tag size="small" style="background:#f0f5ff;border-color:#d6e4ff;color:#1d6fd8">{{ row.name }}:{{ row.tag }}</el-tag>
+          <el-tag size="small" style="background:#e6f4ff;border-color:#91caff;color:#1677ff">{{ row.name }}:{{ row.tag }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="size" label="大小" width="120" sortable="custom" />
@@ -102,7 +102,7 @@
         style="margin-bottom:24px" :on-change="handleImportFileChange"
         :on-success="handleImportSuccess" :on-error="handleImportError" :headers="uploadHeaders">
         <div style="padding:24px">
-          <div style="font-size:32px;color:#1d6fd8;margin-bottom:8px">⬆</div>
+          <div style="font-size:32px;color:#1677ff;margin-bottom:8px">⬆</div>
           <div>导入镜像包，最多支持同时上传 10 个。（仅限导出镜像生成的 .tar 文件）</div>
         </div>
       </el-upload>

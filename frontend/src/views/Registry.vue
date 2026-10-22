@@ -93,7 +93,7 @@
         v-else-if="!registryStore.loading"
         :description="t('registry.noRegistries')"
       >
-        <el-button type="primary" @click="handleAdd">
+        <el-button type="primary" class="btn-create" @click="handleAdd">
           <el-icon><Plus /></el-icon>
           {{ t('registry.add') }}
         </el-button>

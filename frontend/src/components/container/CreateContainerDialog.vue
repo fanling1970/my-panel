@@ -163,7 +163,7 @@
       <el-button v-if="loading || isStreaming" @click="handleMinimize">{{ t('update.minimize') }}</el-button>
       <el-button v-if="loading || isStreaming" type="danger" @click="handleCancelTask">{{ t('container.cancelTask') }}</el-button>
       <el-button v-else @click="handleClose">{{ t('common.close') }}</el-button>
-      <el-button type="primary" :loading="loading" @click="handleSubmit">
+      <el-button type="primary" class="btn-primary-solid" :loading="loading" @click="handleSubmit">
         {{ t('common.confirm') }}
       </el-button>
     </template>

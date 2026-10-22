@@ -309,7 +309,7 @@
         <h4 style="margin: 20px 0 12px; font-size:16px;">挂载目录详情</h4>
         <div v-if="detailInfo.volumes?.length" style="margin-bottom:20px">
           <div v-for="v in detailInfo.volumes" :key="v.host+v.container" style="display:flex;gap:12px;padding:8px 0">
-            <span style="color:#1d6fd8;flex:1">{{ v.host }}</span>
+            <span style="color:#1677ff;flex:1">{{ v.host }}</span>
             <span style="flex:1">{{ v.container }}</span>
           </div>
         </div>
@@ -919,10 +919,10 @@ onMounted(async () => {
 
 /* 操作列 终端/日志/编辑 用深蓝，和容器名一致 */
 :deep(.el-table .el-button.is-link.is-primary) {
-  color: #1d6fd8 !important;
+  color: #1677ff !important;
 }
 :deep(.el-table .el-button.is-link.is-primary:hover) {
-  color: #1559b0 !important;
+  color: #4096ff !important;
 }
 
 /* dpanel 风格表头 + 更大更深的字体 */
