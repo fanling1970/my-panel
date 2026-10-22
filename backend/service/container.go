@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -232,6 +233,8 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 		ports string
 	}
 	metaCache := map[string]*composeMeta{}
+	// 待并行补全 host 网络端口的容器
+	var pendingHostPorts []portTask
 	getMeta := func(project string) *composeMeta {
 		if m, ok := metaCache[project]; ok {
 			return m
@@ -281,8 +284,8 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 			}
 		}
 		// 端口仍为空且是 host 网络：用 ExposedPorts / 镜像元数据 / PORT 环境变量兜底显示
-		if ports == "" {
-			ports = s.hostNetworkPorts(c.ID)
+		if ports == "" && c.HostConfig.NetworkMode == "host" {
+			pendingHostPorts = append(pendingHostPorts, portTask{index: len(result), id: c.ID})
 		}
 
 		result = append(result, model.ContainerInfo{
@@ -296,7 +299,31 @@ func (s *ContainerService) convertContainers(containers []types.Container) []mod
 			Description: description,
 		})
 	}
+
+	// host 网络容器的端口兜底需要额外 inspect，改为并行执行，避免串行拖慢列表
+	if len(pendingHostPorts) > 0 {
+		sem := make(chan struct{}, 8)
+		var wg sync.WaitGroup
+		for _, t := range pendingHostPorts {
+			wg.Add(1)
+			go func(t portTask) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				if p := s.hostNetworkPorts(t.id); p != "" {
+					result[t.index].Ports = p
+				}
+			}(t)
+		}
+		wg.Wait()
+	}
 	return result
+}
+
+// portTask 需要补全端口的容器（索引对应结果位置）
+type portTask struct {
+	index int
+	id    string
 }
 
 // hostNetworkPorts 为 host 网络的容器推断端口：

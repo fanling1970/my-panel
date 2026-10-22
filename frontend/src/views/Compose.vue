@@ -196,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Setting, List, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -441,6 +441,24 @@ function importLocal() {
   input.click()
 }
 
+/** 把 shell 写法的主机路径转成 compose 可用的相对路径：$(pwd)/data -> ./data */
+function normalizeVolume(spec: string): string {
+  const parts: string[] = spec.split(':')
+  if (parts.length < 2) return spec
+  let src: string = parts[0] ?? ''
+  // $(pwd) / ${PWD} / $PWD 在 compose 中不会被展开，等价写法是相对项目目录的 .
+  if (/\$\((pwd|PWD)\)/.test(src)) {
+    src = '.' + src.replace(/^\$\((pwd|PWD)\)/, '')
+  } else if (/\$\{(PWD|pwd)\}/.test(src)) {
+    src = '.' + src.replace(/^\$\{(PWD|pwd)\}/, '')
+  } else if (/^\$PWD/.test(src)) {
+    src = '.' + src.replace(/^\$PWD/, '')
+  }
+  if (src === '') src = '.'
+  parts[0] = src
+  return parts.join(':')
+}
+
 function convertRun() {
   const cmd = runCmd.value
   const name = cmd.match(/--name\s+(\S+)/)?.[1] || ''
@@ -457,7 +475,7 @@ function convertRun() {
   for (const m of envMatches) envs.push(`${m[1]}`)
 
   const volMatches = cmd.matchAll(/-v\s+(\S+)/g)
-  for (const m of volMatches) volumes.push(`- ${m[1]}`)
+  for (const m of volMatches) volumes.push(`- ${normalizeVolume(m[1] ?? '')}`)
 
   let yaml = 'services:\n  app:\n'
   if (name) yaml += `    container_name: ${name}\n`
@@ -481,16 +499,26 @@ function convertRun() {
   runCmd.value = ''
 }
 
-async function fetchProjects() {
-  loading.value = true
+async function fetchProjects(silent = false) {
+  if (!silent) loading.value = true
   try {
-    const res = await request.get('/compose/list')
+    const res = await request.get('/compose/list', { suppressErrorMessage: true })
     projects.value = res.data || []
   } catch {}
-  loading.value = false
+  if (!silent) loading.value = false
 }
 
 function handleRefresh() { fetchProjects() }
+
+// 自动刷新：静默轮询，避免打开页面等待和刷新闪烁
+let pollTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  fetchProjects()
+  pollTimer = setInterval(() => fetchProjects(true), 2000)
+})
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 
 async function handleCreate() {
   if (!form.value.name) return
@@ -534,8 +562,6 @@ async function handleDeleteProject(name: string) {
     fetchProjects()
   } catch {}
 }
-
-onMounted(() => { fetchProjects() })
 </script>
 
 <style scoped>

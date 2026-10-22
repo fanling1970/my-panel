@@ -130,15 +130,15 @@ export const useContainerStore = defineStore('containers', () => {
     error.value = null
   }
 
-  async function fetchContainers(): Promise<void> {
+  async function fetchContainers(silent = false): Promise<void> {
     try {
-      loading.value = true
+      if (!silent) loading.value = true
       error.value = null
       containers.value = await containerApi.list()
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch containers'
+      if (!silent) error.value = e instanceof Error ? e.message : 'Failed to fetch containers'
     } finally {
-      loading.value = false
+      if (!silent) loading.value = false
     }
   }
 

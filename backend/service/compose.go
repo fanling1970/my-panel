@@ -58,7 +58,7 @@ func (s *ComposeService) ListProjects() ([]model.ComposeProject, error) {
 
 	result := []model.ComposeProject{}
 	for name := range projectSet {
-		p := s.projectFromContainers(name)
+		p := s.projectFrom(name, containers)
 		p.Description = s.fileRepo.GetComposeDescription(name)
 		p.CreatedAt = s.fileRepo.GetComposeCreatedAt(name)
 		// 汇总项目端口映射
@@ -176,14 +176,18 @@ func (s *ComposeService) getProjectStatus(name string) string {
 }
 
 func (s *ComposeService) projectFromContainers(name string) *model.ComposeProject {
+	containers, err := s.dockerRepo.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		return &model.ComposeProject{Name: name, Status: "unknown"}
+	}
+	return s.projectFrom(name, containers)
+}
+
+// projectFrom 用已获取的容器列表构建项目信息，避免列表页逐个查询 Docker（N+1 拖慢响应）
+func (s *ComposeService) projectFrom(name string, containers []types.Container) *model.ComposeProject {
 	project := &model.ComposeProject{
 		Name:   name,
 		Status: "stopped",
-	}
-	containers, err := s.dockerRepo.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	if err != nil {
-		project.Status = "unknown"
-		return project
 	}
 
 	running := 0

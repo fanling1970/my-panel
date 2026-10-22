@@ -466,10 +466,25 @@ async function fetchAllRunningStats() {
   }
 }
 
-// 监听容器列表变化，自动获取 stats
-watch(() => containerStore.containers, () => {
+// 容器状态签名变化时刷新 stats（列表本身由定时器静默轮询，避免每次轮询都重拉 stats）
+const statsSignature = computed(() =>
+  containerStore.containers.filter(c => c.state === 'running').map(c => c.id).join(',')
+)
+watch(statsSignature, () => {
   fetchAllRunningStats()
 }, { immediate: true })
+
+// 静默轮询：列表 2 秒、stats 5 秒刷新一次，页面数据接近实时且无 loading 闪烁
+let listPollTimer: ReturnType<typeof setInterval> | undefined
+let statsPollTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  listPollTimer = setInterval(() => containerStore.fetchContainers(true), 2000)
+  statsPollTimer = setInterval(() => fetchAllRunningStats(), 5000)
+})
+onUnmounted(() => {
+  if (listPollTimer) clearInterval(listPollTimer)
+  if (statsPollTimer) clearInterval(statsPollTimer)
+})
 
 // Responsive state
 const windowWidth = ref(window.innerWidth)
