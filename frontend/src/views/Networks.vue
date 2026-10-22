@@ -155,6 +155,7 @@ function handleNetworkCreated() {
 
 // Fetch networks on mount
 onMounted(() => {
+  networkStore.setPage(1)
   networkStore.fetchNetworks()
 })
 </script>

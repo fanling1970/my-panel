@@ -156,7 +156,7 @@ onUnmounted(() => {
   <el-container class="main-layout">
     <el-aside v-if="!isMobile" width="200px" class="main-sidebar">
       <div class="sidebar-header">
-        <span class="logo-text">1Panel</span>
+        <span class="logo-text">My Panel</span>
       </div>
 
       <el-menu :default-active="$route.path" class="sidebar-menu" @select="handleMenuSelect">
@@ -169,7 +169,7 @@ onUnmounted(() => {
 
     <el-drawer v-model="drawerVisible" direction="ltr" :size="280" :with-header="false" class="mobile-drawer">
       <div class="drawer-header">
-        <span class="logo-text">1Panel</span>
+        <span class="logo-text">My Panel</span>
       </div>
 
       <el-menu :default-active="$route.path" class="drawer-menu" @select="handleMenuSelect">

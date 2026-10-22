@@ -293,6 +293,7 @@ async function handleExport(row: any) {
 
 // Fetch images on mount
 onMounted(() => {
+  imageStore.setPage(1)
   imageStore.fetchImages()
   loadRegistries()
 })

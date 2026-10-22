@@ -4,14 +4,14 @@
     <div class="page-header">
       <h2>{{ t('container.title') }}</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="showCreateDialog = true">
+        <el-button type="primary" class="btn-create" @click="showCreateDialog = true">
           <el-icon><Plus /></el-icon>
           {{ t('container.create') }}
         </el-button>
-        <el-button @click="showDockerRunDialog = true">
+        <el-button class="btn-outline" @click="showDockerRunDialog = true">
           通过命令创建
         </el-button>
-        <el-button :loading="containerStore.loading" @click="handleRefresh">
+        <el-button class="btn-outline" :loading="containerStore.loading" @click="handleRefresh">
           <el-icon><Refresh /></el-icon>
           {{ t('common.refresh') }}
         </el-button>
@@ -20,13 +20,13 @@
 
     <!-- 批量操作栏 -->
     <div class="batch-bar">
-      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('start')">启动</el-button>
-      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('stop')">停止</el-button>
-      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('restart')">重启</el-button>
-      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('kill')">强制停止</el-button>
-      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('pause')">暂停</el-button>
-      <el-button size="default" :disabled="selectedIds.length === 0" @click="batchAction('unpause')">恢复</el-button>
-      <el-button size="default" type="danger" :disabled="selectedIds.length === 0" @click="batchAction('remove')">删除</el-button>
+      <el-button size="default" class="btn-primary-solid" :disabled="selectedIds.length === 0" @click="batchAction('start')">启动</el-button>
+      <el-button size="default" class="btn-danger-plain" :disabled="selectedIds.length === 0" @click="batchAction('stop')">停止</el-button>
+      <el-button size="default" class="btn-outline" :disabled="selectedIds.length === 0" @click="batchAction('restart')">重启</el-button>
+      <el-button size="default" class="btn-danger-solid" :disabled="selectedIds.length === 0" @click="batchAction('kill')">强制停止</el-button>
+      <el-button size="default" class="btn-outline" :disabled="selectedIds.length === 0" @click="batchAction('pause')">暂停</el-button>
+      <el-button size="default" class="btn-outline" :disabled="selectedIds.length === 0" @click="batchAction('unpause')">恢复</el-button>
+      <el-button size="default" class="btn-danger-solid" :disabled="selectedIds.length === 0" @click="batchAction('remove')">删除</el-button>
     </div>
 
     <!-- 搜索行 + 表格：随表格一起滚动 -->
@@ -249,28 +249,29 @@
         <h4 style="margin: 0 0 16px; font-size:16px;">状态管理 - <el-tag :type="detailInfo.running ? 'success' : 'warning'" size="small">{{ detailInfo.running ? '运行中' : '已停止' }}</el-tag></h4>
         <el-space wrap size="default" style="margin-bottom: 24px;">
           <template v-if="detailInfo.running">
-            <el-button size="default" @click="handleAction(detailRow, 'restart')">重启</el-button>
-            <el-button size="default" type="danger" @click="handleAction(detailRow, 'stop')">停止</el-button>
+            <el-button size="default" class="btn-outline" @click="handleAction(detailRow, 'restart')">重启</el-button>
+            <el-button size="default" class="btn-danger-plain" @click="handleAction(detailRow, 'stop')">停止</el-button>
+            <el-button size="default" class="btn-outline" @click="handleAction(detailRow, 'pause')">暂停</el-button>
           </template>
           <template v-else>
-            <el-button size="default" type="primary" @click="handleAction(detailRow, 'start')">启动</el-button>
+            <el-button size="default" class="btn-primary-solid" @click="handleAction(detailRow, 'start')">启动</el-button>
           </template>
-          <el-button size="default" @click="refreshDetail">刷新</el-button>
-          <el-button size="default" type="primary" @click="handleOpenTerminal(detailRow.id, detailRow.name)">控制台</el-button>
-          <el-button size="default" @click="handleViewLogs(detailRow.id, detailRow.name)">日志</el-button>
+          <el-button size="default" class="btn-outline" @click="refreshDetail">刷新</el-button>
+          <el-button size="default" class="btn-primary-solid" @click="handleOpenTerminal(detailRow.id, detailRow.name)">控制台</el-button>
+          <el-button size="default" class="btn-outline" @click="handleViewLogs(detailRow.id, detailRow.name)">日志</el-button>
         </el-space>
 
         <!-- 容器管理 -->
         <h4 style="margin: 0 0 12px; font-size:16px;">容器管理</h4>
         <el-space wrap size="default" style="margin-bottom: 24px;">
-          <el-button size="default" type="primary" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
-          <el-button v-if="containerStore.updateMap[detailRow.id] || checkBadge === '有更新'" size="default" type="warning" @click="handleUpgrade(detailRow)">更新</el-button>
+          <el-button size="default" class="btn-primary-solid" @click="handleOpenConfig(detailRow.id, detailRow.name)">编辑</el-button>
+          <el-button v-if="containerStore.updateMap[detailRow.id] || checkBadge === '有更新'" size="default" class="btn-outline" @click="handleUpgrade(detailRow)">更新</el-button>
           <el-badge :value="checkBadge" :type="checkBadgeType" style="margin-right:46px">
-            <el-button size="default" :loading="checkLoading" @click="checkOneUpdate">检测更新</el-button>
+            <el-button size="default" class="btn-outline" :loading="checkLoading" @click="checkOneUpdate">检测更新</el-button>
           </el-badge>
-          <el-button size="default" type="danger" @click="handleDelete(detailRow)">删除</el-button>
-          <el-button size="default" type="danger" plain @click="handleRedeploy">重新部署</el-button>
-          <el-button size="default" @click="openNetDialog">网络管理</el-button>
+          <el-button size="default" class="btn-danger-solid" @click="handleDelete(detailRow)">删除</el-button>
+          <el-button size="default" class="btn-danger-plain" @click="handleRedeploy">重新部署</el-button>
+          <el-button size="default" class="btn-outline" @click="openNetDialog">网络管理</el-button>
         </el-space>
 
         <!-- 绑定端口 -->
@@ -567,7 +568,7 @@ async function handleOpenDetail(row: any) {
   }
 }
 
-async function handleAction(row: any, action: 'start' | 'stop' | 'restart' | 'remove') {
+async function handleAction(row: any, action: 'start' | 'stop' | 'restart' | 'remove' | 'pause' | 'unpause') {
   try {
     await containerStore.containerAction(row.id, action)
     ElMessage.success('操作成功')
@@ -800,6 +801,7 @@ function getStateLabel(state: string): string {
 
 // Fetch containers on mount and handle query params
 onMounted(async () => {
+  containerStore.setPage(1)
   await containerStore.fetchContainers()
   
   // 处理从 Compose 页面跳转过来的操作

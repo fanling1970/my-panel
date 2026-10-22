@@ -1,10 +1,10 @@
 <template>
   <div class="compose-page">
     <div class="page-header">
-      <h2>Compose 管理</h2>
+      <h2>任务管理</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="openCreate">创建项目</el-button>
-        <el-button :loading="loading" @click="handleRefresh">刷新</el-button>
+        <el-button type="primary" class="btn-create" @click="openCreate">创建任务</el-button>
+        <el-button class="btn-outline" :loading="loading" @click="handleRefresh">刷新</el-button>
       </div>
     </div>
     <el-input v-model="search" placeholder="搜索" style="max-width:320px;margin-bottom:16px" clearable @input="page = 1">
@@ -99,13 +99,13 @@
         <el-radio value="text">文本 Yaml</el-radio>
       </el-radio-group>
       <div style="display:flex;gap:12px;margin-bottom:12px">
-        <el-button @click="importLocal">导入本地 Compose 文件</el-button>
-        <el-button @click="showRunDrawer = true">通过 docker run 命令</el-button>
+        <el-button class="btn-outline" @click="importLocal">导入本地 Compose 文件</el-button>
+        <el-button class="btn-outline" @click="showRunDrawer = true">通过 docker run 命令</el-button>
       </div>
       <el-input v-model="form.yaml" type="textarea" :rows="12" placeholder="services:&#10;  xxx:&#10;    image: xxx" style="font-family:monospace" @input="autoName" />
       <template #footer>
-        <el-button @click="showCreate = false">取消</el-button>
-        <el-button type="primary" @click="handleCreate">确定</el-button>
+        <el-button class="btn-outline" @click="showCreate = false">取消</el-button>
+        <el-button class="btn-primary-solid" @click="handleCreate">确定</el-button>
       </template>
     </el-drawer>
 
@@ -113,8 +113,8 @@
     <el-drawer v-model="showRunDrawer" title="docker run 命令" size="60%" :close-on-click-modal="false">
       <el-input v-model="runCmd" type="textarea" :rows="15" placeholder="请输入 docker run ... 命令" style="font-family:monospace" />
       <template #footer>
-        <el-button @click="showRunDrawer = false">取消</el-button>
-        <el-button type="primary" @click="convertRun">确定</el-button>
+        <el-button class="btn-outline" @click="showRunDrawer = false">取消</el-button>
+        <el-button class="btn-primary-solid" @click="convertRun">确定</el-button>
       </template>
     </el-drawer>
 
@@ -122,25 +122,25 @@
     <el-drawer v-model="showDetail" :title="'任务管理 ' + currentProject" size="60%" :close-on-click-modal="false">
       <h4 class="section-title"><el-icon><Setting /></el-icon> 容器管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
-        <el-button type="primary" :loading="deploying" @click="handleDeploy">{{ isRunning ? '更新' : '启动' }}</el-button>
-        <el-button :disabled="!hasContainers" @click="handleAction('restart')">重启</el-button>
-        <el-button :disabled="!isRunning && !isPaused" @click="handleAction('stop')">停止</el-button>
-        <el-button v-if="isPaused" @click="handleAction('unpause')">恢复</el-button>
-        <el-button v-else :disabled="!isRunning" @click="handleAction('pause')">暂停</el-button>
-        <el-button :disabled="!hasContainers" @click="openLogs({ name: currentProject })">日志</el-button>
-        <el-button :disabled="!isRunning" @click="openConsole({ name: currentProject })">控制台</el-button>
+        <el-button class="btn-primary-solid" :loading="deploying" @click="handleDeploy">{{ isRunning ? '更新' : '启动' }}</el-button>
         <el-popconfirm title="停止并删除该项目全部容器？" @confirm="handleAction('down')">
           <template #reference>
-            <span><el-button type="danger" plain :disabled="!hasContainers">删除容器</el-button></span>
+            <el-button class="btn-danger-solid" :disabled="!hasContainers">删除容器</el-button>
           </template>
         </el-popconfirm>
+        <el-button class="btn-outline" :disabled="!hasContainers" @click="handleAction('restart')">重启</el-button>
+        <el-button class="btn-outline" :disabled="!isRunning && !isPaused" @click="handleAction('stop')">停止</el-button>
+        <el-button v-if="isPaused" class="btn-outline" @click="handleAction('unpause')">恢复</el-button>
+        <el-button v-else class="btn-outline" :disabled="!isRunning" @click="handleAction('pause')">暂停</el-button>
+        <el-button class="btn-outline" :disabled="!hasContainers" @click="openLogs({ name: currentProject })">日志</el-button>
+        <el-button class="btn-outline" :disabled="!isRunning" @click="openConsole({ name: currentProject })">控制台</el-button>
       </div>
 
       <h4 class="section-title"><el-icon><Setting /></el-icon> 任务管理</h4>
       <div style="display:flex;gap:12px;margin-bottom:24px">
-        <el-button type="primary" @click="openEdit({name: currentProject})">编辑任务</el-button>
-        <el-button @click="openProjectDir">目录</el-button>
-        <el-button @click="handleRefresh">刷新</el-button>
+        <el-button class="btn-primary-solid" @click="openEdit({name: currentProject})">编辑任务</el-button>
+        <el-button class="btn-outline" @click="openProjectDir">目录</el-button>
+        <el-button class="btn-outline" @click="handleRefresh">刷新</el-button>
       </div>
 
       <h4 class="section-title"><el-icon><List /></el-icon> 容器列表</h4>
@@ -530,6 +530,7 @@ function handleRefresh() { fetchProjects() }
 // 自动刷新：静默轮询，避免打开页面等待和刷新闪烁
 let pollTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
+  page.value = 1
   fetchProjects()
   pollTimer = setInterval(() => fetchProjects(true), 2000)
 })

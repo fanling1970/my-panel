@@ -153,6 +153,7 @@ function handleVolumeCreated() {
 
 // Fetch volumes on mount
 onMounted(() => {
+  volumeStore.setPage(1)
   volumeStore.fetchVolumes()
 })
 </script>
