@@ -466,7 +466,7 @@ async function fetchAllRunningStats() {
   }
 }
 
-// 容器状态签名变化时刷新 stats（列表本身由定时器静默轮询，避免每次轮询都重拉 stats）
+// 容器状态签名变化时刷新 stats（仅首次加载和容器集合变化时触发，避免轮询时跳动）
 const statsSignature = computed(() =>
   containerStore.containers.filter(c => c.state === 'running').map(c => c.id).join(',')
 )
@@ -474,16 +474,14 @@ watch(statsSignature, () => {
   fetchAllRunningStats()
 }, { immediate: true })
 
-// 静默轮询：列表 2 秒、stats 5 秒刷新一次，页面数据接近实时且无 loading 闪烁
+// 静默轮询：列表 5 秒刷新一次，页面数据接近实时且无 loading 闪烁
+// stats 不再单独轮询（之前 5 秒刷新会导致 CPU/内存数值跳动）
 let listPollTimer: ReturnType<typeof setInterval> | undefined
-let statsPollTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
-  listPollTimer = setInterval(() => containerStore.fetchContainers(true), 2000)
-  statsPollTimer = setInterval(() => fetchAllRunningStats(), 5000)
+  listPollTimer = setInterval(() => containerStore.fetchContainers(true), 5000)
 })
 onUnmounted(() => {
   if (listPollTimer) clearInterval(listPollTimer)
-  if (statsPollTimer) clearInterval(statsPollTimer)
 })
 
 // Responsive state

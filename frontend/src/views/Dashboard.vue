@@ -8,6 +8,7 @@ import { useImageStore } from '@/stores/images'
 import { useNetworkStore } from '@/stores/networks'
 import { useVolumeStore } from '@/stores/volumes'
 import { containerApi } from '@/api/containers'
+import request from '@/utils/request'
 import type { ContainerStats } from '@/types'
 import UpdateBanner from '@/components/common/UpdateBanner.vue'
 import UpdateDialog from '@/components/common/UpdateDialog.vue'
@@ -21,6 +22,9 @@ const volumeStore = useVolumeStore()
 
 const showUpdateDialog = ref(false)
 
+// Docker 信息（版本、容器数、镜像数等）
+const dockerInfo = ref<any>({})
+
 // 容器更新检测
 const checking = computed(() => containerStore.updateChecking)
 const checkDialogVisible = ref(false)
@@ -29,7 +33,6 @@ const checkCurrent = ref(0)
 const checkContainerName = ref('')
 const checkImageName = ref('')
 const updateAvailableCount = computed(() => containerStore.updateResults.filter(r => r.has_update).length)
-const pendingCheckCount = computed(() => containerStore.updateResults.length === 0 ? containerStore.containers.length : 0)
 
 async function handleCheckUpdates() {
   try {
@@ -187,10 +190,20 @@ async function fetchAllStats() {
   }
 }
 
+async function fetchDockerInfo() {
+  try {
+    const res = await request.get('/docker/info', { suppressErrorMessage: true })
+    dockerInfo.value = res.data || {}
+  } catch {
+    dockerInfo.value = {}
+  }
+}
+
 let timer: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   systemStore.fetchStats()
+  fetchDockerInfo()
   await Promise.all([
     containerStore.fetchContainers(),
     composeStore.fetchProjects(),
@@ -201,8 +214,7 @@ onMounted(async () => {
   await fetchAllStats()
   timer = setInterval(() => {
     systemStore.fetchStats()
-    fetchAllStats()
-  }, 10000)
+  }, 5000)
 })
 
 onUnmounted(() => {
@@ -291,28 +303,15 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 资源统计卡片 -->
+        <!-- 资源统计卡片：两行三列 -->
         <div class="stat-cards">
           <div class="stat-card">
             <div class="stat-label">容器</div>
-            <div class="stat-num">{{ containerStore.containers.length }}</div>
+            <div class="stat-num">{{ dockerInfo.containers ?? containerStore.containers.length }}</div>
             <div class="stat-sub">
-              <span>运行中 <b class="ok">{{ runningCount }}</b></span>
-              <span>已停止 <b class="stop">{{ exitedCount }}</b></span>
-              <span>已暂停 <b class="pause">{{ pausedCount }}</b></span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">容器更新</div>
-            <div class="stat-num" style="color:#e6a23c">{{ updateAvailableCount }}</div>
-            <div class="stat-sub">
-              <span>待更新 <b class="warn">{{ updateAvailableCount }}</b></span>
-              <span>待检查 <b class="muted">{{ pendingCheckCount }}</b></span>
-            </div>
-            <div style="margin-top:8px">
-              <el-button link type="primary" :loading="checking" @click="handleCheckUpdates">
-                {{ checking ? '检测中...' : '检测更新' }}
-              </el-button>
+              <span>运行中 <b class="ok">{{ dockerInfo.containersRunning ?? runningCount }}</b></span>
+              <span>已停止 <b class="stop">{{ dockerInfo.containersStopped ?? exitedCount }}</b></span>
+              <span>已暂停 <b class="pause">{{ dockerInfo.containersPaused ?? pausedCount }}</b></span>
             </div>
           </div>
           <div class="stat-card">
@@ -326,7 +325,7 @@ onUnmounted(() => {
           </div>
           <div class="stat-card">
             <div class="stat-label">镜像</div>
-            <div class="stat-num">{{ imageTotal }}</div>
+            <div class="stat-num">{{ dockerInfo.images ?? imageTotal }}</div>
             <div class="stat-sub">
               <span>未使用 <b class="muted">{{ imageUnused }}</b></span>
             </div>
@@ -345,13 +344,36 @@ onUnmounted(() => {
               <span>未使用 <b class="muted">{{ volumeUnused }}</b></span>
             </div>
           </div>
+          <div class="stat-card">
+            <div class="stat-label">容器更新</div>
+            <div class="stat-num" style="color:#e6a23c">{{ updateAvailableCount }}</div>
+            <div class="stat-sub">
+              <span>待更新 <b class="warn">{{ updateAvailableCount }}</b></span>
+            </div>
+            <div style="margin-top:8px">
+              <el-button link type="primary" :loading="checking" @click="handleCheckUpdates">
+                {{ checking ? '检测中...' : '检测更新' }}
+              </el-button>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- 右侧栏 -->
       <div class="side-col">
         <div class="info-card">
-          <div class="card-title">系统信息</div>
+          <div class="card-title">Docker 信息</div>
+          <div class="info-row"><span>Docker 版本</span><b>{{ dockerInfo.serverVersion || '-' }}</b></div>
+          <div class="info-row"><span>API 版本</span><b>{{ dockerInfo.apiVersion || '-' }}</b></div>
+          <div class="info-row"><span>操作系统</span><b>{{ dockerInfo.operatingSystem || '-' }}</b></div>
+          <div class="info-row"><span>内核版本</span><b>{{ dockerInfo.kernelVersion || '-' }}</b></div>
+          <div class="info-row"><span>存储驱动</span><b>{{ dockerInfo.driver || '-' }}</b></div>
+          <div class="info-row"><span>容器总数</span><b>{{ dockerInfo.containers ?? '-' }}</b></div>
+          <div class="info-row"><span>镜像总数</span><b>{{ dockerInfo.images ?? '-' }}</b></div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-title">宿主机信息</div>
           <div class="info-row"><span>主机名称</span><b>{{ systemStore.stats.hostname || '-' }}</b></div>
           <div class="info-row"><span>发行版本</span><b>{{ systemStore.stats.os || '-' }}</b></div>
           <div class="info-row"><span>内核版本</span><b>{{ systemStore.stats.kernel || '-' }}</b></div>
@@ -466,10 +488,9 @@ onUnmounted(() => {
 .dot-blue { background: #409eff; }
 .dot-orange { background: #e6a23c; }
 .dot-gray { background: #909399; }
-
 .stat-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-top: 16px;
 }

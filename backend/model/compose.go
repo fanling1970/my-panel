@@ -3,7 +3,8 @@ package model
 // ComposeProject Docker Compose 项目
 type ComposeProject struct {
 	Name        string             `json:"name"`
-	Status      string             `json:"status"` // running, partial, stopped, unknown
+	Dir         string             `json:"dir,omitempty"` // 在 compose_projects 下的目录名
+	Status      string             `json:"status"`       // running, partial, stopped, unknown
 	Description string             `json:"description,omitempty"`
 	Ports       string             `json:"ports,omitempty"`
 	CreatedAt   string             `json:"created_at,omitempty"`

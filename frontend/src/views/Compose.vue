@@ -27,6 +27,18 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
+      <el-table-column label="目录" min-width="140">
+        <template #default="{ row }">
+          <el-button
+            link
+            type="primary"
+            size="small"
+            @click="goToProjectDir(row.name)"
+          >
+            打开目录
+          </el-button>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
           <el-tag v-if="row.status === 'running'" type="success" size="small" effect="plain">运行中</el-tag>
@@ -395,8 +407,13 @@ async function fetchProjectDetail() {
 /** 打开项目文件目录（文件管理页） */
 function openProjectDir() {
   const row = projects.value.find((p: any) => p.name === currentProject.value)
-  const dir = `/host/mnt/mmcblk0p27/my-panel/compose_projects/${currentProject.value}`
-  router.push({ path: '/files', query: { path: row?.dir || dir } })
+  router.push({ path: '/files', query: { path: row?.dir } })
+}
+
+/** 从列表行打开项目目录 */
+function goToProjectDir(dir: string) {
+  if (!dir) return
+  router.push({ path: '/files', query: { path: dir } })
 }
 
 /** 打开单个容器的终端 */

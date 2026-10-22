@@ -7,9 +7,7 @@ import {
   Clock,
   Connection,
   Cpu,
-  Expand,
   Files,
-  Fold,
   FolderOpened,
   Menu,
   Monitor,
@@ -35,7 +33,6 @@ import SystemMonitor from '@/components/common/SystemMonitor.vue'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
 import SettingsDialog from '@/components/common/SettingsDialog.vue'
 import UpdateDialog from '@/components/common/UpdateDialog.vue'
-import dockerLogo from '@/assets/docker.svg'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -48,10 +45,8 @@ const registryStore = useRegistryStore()
 const { theme, toggleTheme } = useTheme()
 const { t } = useI18n()
 
-const logoSrc = dockerLogo
 const windowWidth = ref(window.innerWidth)
 const isMobile = computed(() => windowWidth.value < 768)
-const isCollapse = ref(false)
 const drawerVisible = ref(false)
 const showPasswordDialog = ref(false)
 const showSettingsDialog = ref(false)
@@ -159,28 +154,22 @@ onUnmounted(() => {
 
 <template>
   <el-container class="main-layout">
-    <el-aside v-if="!isMobile" :width="isCollapse ? '64px' : '200px'" class="main-sidebar">
+    <el-aside v-if="!isMobile" width="200px" class="main-sidebar">
       <div class="sidebar-header">
-        <img :src="logoSrc" alt="Logo" class="logo" />
-        <span v-show="!isCollapse" class="logo-text">My Panel</span>
+        <span class="logo-text">1Panel</span>
       </div>
 
-      <el-menu :default-active="$route.path" :collapse="isCollapse" :collapse-transition="false" class="sidebar-menu" @select="handleMenuSelect">
+      <el-menu :default-active="$route.path" class="sidebar-menu" @select="handleMenuSelect">
         <el-menu-item v-for="item in menuItems" :key="item.index" :index="item.index">
           <el-icon><component :is="item.icon" /></el-icon>
           <template #title>{{ item.title }}</template>
         </el-menu-item>
       </el-menu>
-
-      <div class="collapse-btn" @click="isCollapse = !isCollapse">
-        <el-icon :size="20"><component :is="isCollapse ? Expand : Fold" /></el-icon>
-      </div>
     </el-aside>
 
     <el-drawer v-model="drawerVisible" direction="ltr" :size="280" :with-header="false" class="mobile-drawer">
       <div class="drawer-header">
-        <img :src="logoSrc" alt="Logo" class="logo" />
-        <span class="logo-text">My Panel</span>
+        <span class="logo-text">1Panel</span>
       </div>
 
       <el-menu :default-active="$route.path" class="drawer-menu" @select="handleMenuSelect">
@@ -272,11 +261,12 @@ onUnmounted(() => {
 }
 
 .main-sidebar {
-  background-color: var(--rp-sidebar-bg);
-  border-right: 1px solid var(--rp-border-color);
+  background-color: #001529;
+  border-right: none;
   display: flex;
   flex-direction: column;
   transition: width 0.3s;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -285,30 +275,65 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 0 16px;
-  border-bottom: 1px solid var(--rp-border-color);
-}
-
-.logo {
-  width: 32px;
-  height: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .logo-text {
-  margin-left: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
   white-space: nowrap;
+  letter-spacing: 1px;
 }
 
 .sidebar-menu {
   flex: 1;
   border-right: none;
   overflow-y: auto;
+  background-color: #001529 !important;
+  --el-menu-bg-color: #001529;
+  --el-menu-text-color: rgba(255, 255, 255, 0.75);
+  --el-menu-hover-bg-color: rgba(255, 255, 255, 0.08);
+  --el-menu-hover-text-color: #fff;
+  --el-menu-active-color: #fff;
+  --el-menu-item-height: 44px;
+  --el-menu-sub-item-height: 44px;
 }
 
 .sidebar-menu:not(.el-menu--collapse) {
   width: 100%;
+}
+
+.sidebar-menu :deep(.el-menu-item) {
+  margin: 4px 8px;
+  border-radius: 6px;
+  padding-left: 16px !important;
+}
+
+.sidebar-menu :deep(.el-menu-item.is-active) {
+  background-color: #1677ff !important;
+  color: #fff !important;
+}
+
+.sidebar-menu :deep(.el-menu-item:hover) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.sidebar-menu :deep(.el-icon) {
+  font-size: 18px;
+}
+
+.drawer-menu {
+  --el-menu-bg-color: #001529;
+  --el-menu-text-color: rgba(255, 255, 255, 0.75);
+  --el-menu-hover-bg-color: rgba(255, 255, 255, 0.08);
+  --el-menu-hover-text-color: #fff;
+  --el-menu-active-color: #fff;
+}
+
+.drawer-menu :deep(.el-menu-item.is-active) {
+  background-color: #1677ff !important;
+  color: #fff !important;
 }
 
 .node-switcher {
@@ -338,22 +363,6 @@ onUnmounted(() => {
 .drawer-node-switcher {
   padding: 12px 16px;
   border-top: 1px solid var(--rp-border-color);
-}
-
-.collapse-btn {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-top: 1px solid var(--rp-border-color);
-  color: var(--el-text-color-secondary);
-  transition: color 0.3s, background-color 0.3s;
-}
-
-.collapse-btn:hover {
-  color: var(--el-color-primary);
-  background-color: var(--rp-hover-bg);
 }
 
 .main-header {

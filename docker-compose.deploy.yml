@@ -1,11 +1,13 @@
 services:
   my-panel:
-    image: ghcr.io/fanling1970/my-panel:latest
+    build: .
+    image: my-panel:latest
     container_name: my-panel
     restart: unless-stopped
     ports:
       - "3958:3958"
     volumes:
+      - /:/host
       - /var/run/docker.sock:/var/run/docker.sock
       - /root/my-panel/compose_projects:/app/compose_projects
       - /root/my-panel/data:/app/data

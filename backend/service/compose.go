@@ -59,6 +59,8 @@ func (s *ComposeService) ListProjects() ([]model.ComposeProject, error) {
 	result := []model.ComposeProject{}
 	for name := range projectSet {
 		p := s.projectFrom(name, containers)
+		// 文件管理页需要完整 /host 前缀路径来访问挂载的目录
+		p.Dir = "/host/app/compose_projects/" + name
 		p.Description = s.fileRepo.GetComposeDescription(name)
 		p.CreatedAt = s.fileRepo.GetComposeCreatedAt(name)
 		// 汇总项目端口映射
