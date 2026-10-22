@@ -490,6 +490,7 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
   font-size: 13px;
   margin: 0 0 15px 0;
+  width: 100%; /* 独占一行，避免与 radio 挤在同一行错位 */
 }
 
 .list-items {

@@ -444,7 +444,7 @@ onUnmounted(() => {
   stroke-linecap: round;
   transition: stroke-dasharray 0.6s ease;
 }
-.ring-cpu { stroke: #409eff; }
+.ring-cpu { stroke: #1677ff; }
 .ring-mem { stroke: #67c23a; }
 .ring-disk { stroke: #e6a23c; }
 .ring-center {
@@ -485,7 +485,7 @@ onUnmounted(() => {
   display: inline-block;
   margin-right: 8px;
 }
-.dot-blue { background: #409eff; }
+.dot-blue { background: #1677ff; }
 .dot-orange { background: #e6a23c; }
 .dot-gray { background: #909399; }
 .stat-cards {
@@ -508,7 +508,7 @@ onUnmounted(() => {
   font-weight: 600;
   margin-bottom: 12px;
   padding-left: 8px;
-  border-left: 3px solid #409eff;
+  border-left: 3px solid #1677ff;
 }
 .info-card { margin-bottom: 16px; }
 .info-row {
@@ -526,7 +526,7 @@ onUnmounted(() => {
   padding: 5px 0;
 }
 .rank-name { color: #606266; }
-.rank-val { color: #409eff; font-weight: 500; }
+.rank-val { color: #1677ff; font-weight: 500; }
 .empty { font-size: 13px; color: #909399; text-align: center; padding: 16px 0; }
 
 @media (max-width: 1100px) {

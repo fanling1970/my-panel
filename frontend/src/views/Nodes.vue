@@ -340,7 +340,7 @@ onMounted(() => {
 
 .stat-icon.total {
   background-color: rgba(64, 158, 255, 0.1);
-  color: #409eff;
+  color: #1677ff;
 }
 
 .stat-icon.online {

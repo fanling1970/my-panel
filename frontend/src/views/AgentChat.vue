@@ -22,7 +22,7 @@
         <div v-for="(msg, index) in messages" :key="index" :class="['message-row', msg.role]">
           <div class="message-avatar">
             <el-avatar :icon="msg.role === 'user' ? UserFilled : Monitor" :size="32" 
-              :style="{ backgroundColor: msg.role === 'user' ? '#409EFF' : '#67C23A' }" />
+              :style="{ backgroundColor: msg.role === 'user' ? '#1677FF' : '#67C23A' }" />
           </div>
           <div class="message-content">
             <div class="content-text" v-if="msg.role === 'user'">{{ msg.content }}</div>
@@ -260,7 +260,7 @@ onUpdated(() => {
 }
 
 .message-row.user .message-content {
-  background-color: #409EFF;
+  background-color: #1677FF;
   color: white;
   border-top-right-radius: 2px;
 }
@@ -307,7 +307,7 @@ onUpdated(() => {
   display: inline-block;
   width: 8px;
   height: 8px;
-  background-color: #409EFF;
+  background-color: #1677FF;
   border-radius: 50%;
   margin: 0 3px;
   animation: bounce 1.4s infinite ease-in-out both;

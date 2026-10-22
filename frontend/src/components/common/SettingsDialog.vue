@@ -84,11 +84,11 @@ const SETTINGS_KEY = 'rabbit_panel_settings'
 const settings = ref({
   fontSize: 14,
   sidebarWidth: 200,
-  primaryColor: '#409EFF',
+  primaryColor: '#1677FF',
 })
 
 const colorOptions = [
-  { label: '默认蓝', value: '#409EFF' },
+  { label: '默认蓝', value: '#1677FF' },
   { label: '翠绿', value: '#67C23A' },
   { label: '橙色', value: '#E6A23C' },
   { label: '红色', value: '#F56C6C' },
@@ -107,7 +107,7 @@ function resetSettings() {
   settings.value = {
     fontSize: 14,
     sidebarWidth: 200,
-    primaryColor: '#409EFF',
+    primaryColor: '#1677FF',
   }
   applySettings()
 }

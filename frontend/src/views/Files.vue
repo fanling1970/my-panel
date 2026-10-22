@@ -28,19 +28,19 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-      <el-button size="small" @click="newFile">新建文件</el-button>
-      <el-button size="small" @click="newFolder">新建文件夹</el-button>
-      <el-button size="small" @click="triggerUpload">上传</el-button>
-      <el-button size="small" :disabled="!selected.length" @click="startCopy">复制</el-button>
-      <el-button size="small" :disabled="!selected.length" @click="startMove">移动</el-button>
-      <el-button size="small" :disabled="!selected.length" @click="downloadSelected">下载</el-button>
-      <el-button size="small" :disabled="!selected.length" @click="showChmod = true">编辑权限</el-button>
-      <el-button size="small" type="danger" plain :disabled="!selected.length" @click="deleteSelected">删除</el-button>
+      <el-button type="primary" class="btn-create" @click="newFile">新建文件</el-button>
+      <el-button type="primary" class="btn-create" @click="newFolder">新建文件夹</el-button>
+      <el-button class="btn-outline" @click="triggerUpload">上传</el-button>
+      <el-button class="btn-outline" :disabled="!selected.length" @click="startCopy">复制</el-button>
+      <el-button class="btn-outline" :disabled="!selected.length" @click="startMove">移动</el-button>
+      <el-button class="btn-outline" :disabled="!selected.length" @click="downloadSelected">下载</el-button>
+      <el-button class="btn-outline" :disabled="!selected.length" @click="showChmod = true">编辑权限</el-button>
+      <el-button class="btn-danger-plain" :disabled="!selected.length" @click="deleteSelected">删除</el-button>
       <template v-if="clipboard.length">
-        <el-button size="small" type="primary" @click="paste">粘贴({{ clipboard.length }})</el-button>
-        <el-button size="small" type="danger" circle @click="clipboard = []">✕</el-button>
+        <el-button type="primary" class="btn-create" @click="paste">粘贴({{ clipboard.length }})</el-button>
+        <el-button class="btn-outline" :disabled="!selected.length" circle @click="clipboard = []">✕</el-button>
       </template>
-      <el-input v-model="search" placeholder="搜索" size="small" style="max-width:200px;margin-left:auto" clearable />
+      <el-input v-model="search" placeholder="搜索" style="max-width:200px;margin-left:auto" clearable />
     </div>
     <input ref="fileInput" type="file" style="display:none" @change="uploadFile" />
     <el-table v-loading="loading" :data="filteredFiles" stripe style="width:100%" @selection-change="onSelect" @row-dblclick="openRow">

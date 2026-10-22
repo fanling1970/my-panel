@@ -20,9 +20,9 @@
       <span v-else class="terminal-tabs-placeholder">未打开任何会话</span>
 
       <div class="terminal-actions">
-        <el-button type="primary" size="small" :icon="Plus" @click="openHostSession">宿主机终端</el-button>
-        <el-button size="small" :icon="Setting" @click="openConfigDialog">SSH 配置</el-button>
-        <el-tag v-if="hostMode.available" type="success" size="small" effect="plain">直通模式</el-tag>
+        <el-button type="primary" class="btn-create" :icon="Plus" @click="openHostSession">宿主机终端</el-button>
+        <el-button class="btn-outline" :icon="Setting" @click="openConfigDialog">SSH 配置</el-button>
+        <el-tag v-if="hostMode.available" type="success" effect="plain">直通模式</el-tag>
       </div>
     </div>
 
@@ -100,9 +100,9 @@
         </template>
       </el-alert>
       <template #footer>
-        <el-button @click="showConfig = false">取消</el-button>
-        <el-button :loading="testing" @click="testConnection">连接测试</el-button>
-        <el-button type="primary" :loading="saving" @click="saveAndConnect">保存并连接</el-button>
+        <el-button class="btn-outline" @click="showConfig = false">取消</el-button>
+        <el-button class="btn-outline" :loading="testing" @click="testConnection">连接测试</el-button>
+        <el-button type="primary" class="btn-primary-solid" :loading="saving" @click="saveAndConnect">保存并连接</el-button>
       </template>
     </el-dialog>
   </div>

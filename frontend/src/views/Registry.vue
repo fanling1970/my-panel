@@ -7,11 +7,11 @@
         <p class="page-desc">{{ t('registry.usage') }}</p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="handleAdd">
+        <el-button type="primary" class="btn-create" @click="handleAdd">
           <el-icon><Plus /></el-icon>
           {{ t('registry.add') }}
         </el-button>
-        <el-button :loading="registryStore.loading" @click="handleRefresh">
+        <el-button class="btn-outline" :loading="registryStore.loading" @click="handleRefresh">
           <el-icon><Refresh /></el-icon>
           {{ t('common.refresh') }}
         </el-button>

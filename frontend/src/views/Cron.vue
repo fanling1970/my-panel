@@ -3,7 +3,7 @@
     <div class="page-header">
       <h2>计划任务</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="openCreate">创建计划任务</el-button>
+        <el-button type="primary" class="btn-create" @click="openCreate">创建计划任务</el-button>
       </div>
     </div>
 
@@ -173,7 +173,7 @@
       </el-form>
       <template #footer>
         <el-button @click="showForm = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">确定</el-button>
+        <el-button type="primary" class="btn-primary-solid" :loading="saving" @click="save">确定</el-button>
       </template>
     </el-drawer>
 

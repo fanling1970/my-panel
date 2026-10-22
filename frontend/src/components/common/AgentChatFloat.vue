@@ -48,7 +48,7 @@
           <div v-for="(msg, index) in messages" :key="index" :class="['message-row', msg.role]">
             <div class="message-avatar">
               <el-avatar :icon="msg.role === 'user' ? UserFilled : Monitor" :size="28" 
-                :style="{ backgroundColor: msg.role === 'user' ? '#409EFF' : '#67C23A' }" />
+                :style="{ backgroundColor: msg.role === 'user' ? '#1677FF' : '#67C23A' }" />
             </div>
             <div class="message-content">
               <div class="content-text" v-if="msg.role === 'user'">{{ msg.content }}</div>

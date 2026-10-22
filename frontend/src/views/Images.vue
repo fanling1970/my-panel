@@ -4,11 +4,11 @@
     <div class="page-header">
       <h2>镜像管理</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="showPullDialog = true">拉取镜像</el-button>
-        <el-button @click="showImportDialog = true">导入镜像</el-button>
-        <el-button @click="showBuildDialog = true">构建镜像</el-button>
-        <el-button @click="handlePrune">清理构建缓存</el-button>
-        <el-button :loading="imageStore.loading" @click="handleRefresh">刷新</el-button>
+        <el-button type="primary" class="btn-create" :icon="Download" @click="showPullDialog = true">拉取镜像</el-button>
+        <el-button class="btn-outline" :icon="Promotion" @click="showImportDialog = true">导入镜像</el-button>
+        <el-button type="primary" class="btn-create" :icon="SetUp" @click="showBuildDialog = true">构建镜像</el-button>
+        <el-button class="btn-outline" :icon="Box" @click="handlePrune">自动清理</el-button>
+        <el-button class="btn-outline" :icon="Refresh" :loading="imageStore.loading" @click="handleRefresh">刷新</el-button>
       </div>
     </div>
 
@@ -89,7 +89,7 @@
       </div>
       <div style="display:flex;gap:12px;margin-bottom:16px">
         <el-input v-model="pullImage" placeholder="请输入镜像地址" style="flex:1" />
-        <el-button type="primary" :loading="pulling" @click="handlePull">拉取镜像</el-button>
+        <el-button type="primary" class="btn-primary-solid" :loading="pulling" @click="handlePull">拉取镜像</el-button>
       </div>
       <h4 style="margin-bottom:12px;font-size:16px">拉取进度</h4>
       <el-progress :percentage="pullProgress" />
@@ -109,11 +109,11 @@
       <h4 style="margin-bottom:12px;font-size:16px">远程地址</h4>
       <div style="display:flex;gap:8px">
         <el-input v-model="remoteImportUrl" placeholder="输入远程镜像地址导入" style="flex:1" @keyup.enter="handleImportUrl" />
-        <el-button type="primary" :loading="importingUrl" :disabled="!remoteImportUrl.trim()" @click="handleImportUrl">导入</el-button>
+        <el-button type="primary" class="btn-primary-solid" :loading="importingUrl" :disabled="!remoteImportUrl.trim()" @click="handleImportUrl">导入</el-button>
       </div>
       <template #footer>
-        <el-button @click="showImportDialog = false">取消</el-button>
-        <el-button type="primary" @click="showImportDialog = false">确定</el-button>
+        <el-button class="btn-outline" @click="showImportDialog = false">取消</el-button>
+        <el-button type="primary" class="btn-primary-solid" @click="showImportDialog = false">确定</el-button>
       </template>
     </el-drawer>
   </div>
@@ -121,7 +121,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Download, Promotion, SetUp, Box, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useImageStore, type SortField } from '@/stores/images'
 import BuildImageDialog from '@/components/image/BuildImageDialog.vue'

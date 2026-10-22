@@ -4,9 +4,9 @@
     <div class="page-header">
       <h2>网络管理</h2>
       <div class="header-actions">
-        <el-button @click="handlePrune">自动清理</el-button>
-        <el-button type="primary" @click="showCreateDialog = true">创建网络</el-button>
-        <el-button :loading="networkStore.loading" @click="handleRefresh">刷新</el-button>
+        <el-button class="btn-outline" :icon="Box" @click="handlePrune">自动清理</el-button>
+        <el-button type="primary" class="btn-create" @click="showCreateDialog = true">创建网络</el-button>
+        <el-button class="btn-outline" :icon="Refresh" :loading="networkStore.loading" @click="handleRefresh">刷新</el-button>
       </div>
     </div>
 
@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Box, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useNetworkStore } from '@/stores/networks'
 import request from '@/utils/request'
