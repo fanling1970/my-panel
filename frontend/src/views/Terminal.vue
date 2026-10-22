@@ -21,7 +21,8 @@
 
       <div class="terminal-actions">
         <el-button type="primary" size="small" :icon="Plus" @click="openHostSession">宿主机终端</el-button>
-        <el-button size="small" :icon="Setting" @click="openConfigDialog">连接配置</el-button>
+        <el-button size="small" :icon="Setting" @click="openConfigDialog">SSH 配置</el-button>
+        <el-tag v-if="hostMode.available" type="success" size="small" effect="plain">直通模式</el-tag>
       </div>
     </div>
 
@@ -51,7 +52,7 @@
         </div>
       </div>
 
-      <el-empty v-if="!sessions.length" description="点击右上角「宿主机终端」打开终端" class="terminal-empty" />
+      <el-empty v-if="!sessions.length" :description="hostMode.available ? '点击右上角「宿主机终端」直接进入宿主机（直通模式，无需 SSH）' : '点击右上角「宿主机终端」打开终端（需先在 SSH 配置中填写宿主机连接信息）'" class="terminal-empty" />
     </div>
 
     <!-- 宿主机 SSH 连接配置 -->
@@ -81,7 +82,8 @@
           <div>{{ configError }}</div>
           <div style="margin-top:6px;font-size:12px">
             排查建议：确认宿主机已开启 SSH 服务且端口正确；面板运行在容器内，需保证容器网络可访问宿主机
-            {{ configForm.host }}:{{ configForm.port }}（可尝试宿主机局域网 IP 或改用 host 网络模式部署面板）。
+            {{ configForm.host }}:{{ configForm.port }}（可尝试宿主机局域网 IP）。
+            若容器已开启 pid: host + privileged，可直接使用「宿主机终端」的直通模式，无需 SSH。
           </div>
         </template>
       </el-alert>
@@ -102,13 +104,15 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-import terminalApi, { type SSHHostConfig } from '@/api/terminal'
+import terminalApi, { type SSHHostConfig, type HostShellMode } from '@/api/terminal'
 
 type SessionStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 interface Session {
   id: string
   title: string
+  /** 连接方式：direct=nsenter 直通，ssh=SSH */
+  mode: 'direct' | 'ssh'
   status: SessionStatus
   errorMessage?: string
   el: HTMLElement | null
@@ -123,6 +127,8 @@ let sessionSeq = 0
 const sessions = ref<Session[]>([])
 const activeId = ref('')
 const hostConfig = ref<SSHHostConfig | null>(null)
+/** 宿主机直通模式（pid: host + nsenter 可用时为 true） */
+const hostMode = ref<HostShellMode>({ available: false })
 
 const showConfig = ref(false)
 const testing = ref(false)
@@ -151,24 +157,22 @@ function setSessionEl(s: Session, el: any) {
   s.el = el instanceof HTMLElement ? el : null
 }
 
-/** 点击「宿主机终端」：已配置直接连接，未配置先弹配置框 */
+/** 点击「宿主机终端」：优先直通模式，其次已配置的 SSH，都没有则弹配置框 */
 function openHostSession() {
+  if (hostMode.value.available) {
+    createHostSession('direct')
+    return
+  }
   if (hostConfig.value) {
-    // 同一宿主机只保留一个会话
-    const existing = sessions.value[0]
-    if (existing) {
-      activeId.value = existing.id
-      onTabChange(existing.id)
-      return
-    }
-    createHostSession()
+    createHostSession('ssh')
     return
   }
   connectAfterSave = true
   openConfigDialog()
 }
 
-function createHostSession() {
+function createHostSession(mode: 'direct' | 'ssh') {
+  // 同一宿主机只保留一个会话
   const existing = sessions.value[0]
   if (existing) {
     activeId.value = existing.id
@@ -178,7 +182,8 @@ function createHostSession() {
   const id = `t${++sessionSeq}`
   sessions.value.push({
     id,
-    title: '宿主机',
+    title: mode === 'direct' ? '宿主机（直通）' : '宿主机',
+    mode,
     status: 'connecting',
     el: null,
     term: null,
@@ -245,7 +250,7 @@ async function saveAndConnect() {
     showConfig.value = false
     ElMessage.success('配置已保存')
     if (connectAfterSave) {
-      createHostSession()
+      createHostSession('ssh')
     }
   } catch (e: any) {
     configError.value = extractError(e)
@@ -296,7 +301,7 @@ function connectSession(s: Session) {
 
   const cols = s.term.cols
   const rows = s.term.rows
-  const ws = new WebSocket(terminalApi.sshUrl(cols, rows))
+  const ws = new WebSocket(s.mode === 'direct' ? terminalApi.hostDirectUrl(cols, rows) : terminalApi.sshUrl(cols, rows))
   s.ws = ws
 
   ws.onopen = () => {
@@ -424,8 +429,17 @@ const terminalTheme = {
   brightWhite: '#e5e5e5',
 }
 
+async function loadHostMode() {
+  try {
+    hostMode.value = await terminalApi.getHostMode()
+  } catch {
+    hostMode.value = { available: false }
+  }
+}
+
 onMounted(() => {
   loadConfig()
+  loadHostMode()
   window.addEventListener('resize', onWindowResize)
 })
 

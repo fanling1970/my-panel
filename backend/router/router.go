@@ -151,6 +151,8 @@ func (r *Router) Register() {
 		apiAuth.GET("/terminal/ssh-config", r.handleSSHConfigGet)
 		apiAuth.POST("/terminal/ssh-config", r.handleSSHConfigSave)
 		apiAuth.POST("/terminal/ssh-test", r.handleSSHTest)
+		apiAuth.GET("/terminal/host-mode", r.handleHostMode)
+		apiAuth.GET("/terminal/host-direct", r.handleHostDirectWS)
 		apiAuth.GET("/terminal/ssh", r.handleSSHTerminalWS)
 
 		apiAuth.GET("/fs/read", r.handleFsRead)
@@ -2538,6 +2540,81 @@ func (r *Router) handleSSHTerminalWS(c *gin.Context) {
 		}
 		if _, err := stdin.Write(message); err != nil {
 			log.Printf("[SSHTerminal] 写入 SSH 失败: %v", err)
+			return
+		}
+	}
+}
+
+func (r *Router) handleHostMode(c *gin.Context) {
+	c.JSON(http.StatusOK, r.app.HostShellService.Detect())
+}
+
+// handleHostDirectWS 宿主机直通终端 WebSocket（nsenter，无需 SSH）。
+// 二进制/文本帧为终端输入输出，JSON 帧 {"type":"resize","cols":n,"rows":n} 调整窗口大小。
+func (r *Router) handleHostDirectWS(c *gin.Context) {
+	cols, rows := uint32(80), uint32(24)
+	if v, err := strconv.Atoi(c.Query("cols")); err == nil && v > 0 && v < 500 {
+		cols = uint32(v)
+	}
+	if v, err := strconv.Atoi(c.Query("rows")); err == nil && v > 0 && v < 500 {
+		rows = uint32(v)
+	}
+
+	conn, err := ginWsUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	if mode := r.app.HostShellService.Detect(); !mode.Available {
+		_ = conn.WriteJSON(gin.H{"type": "error", "data": mode.Reason})
+		return
+	}
+
+	ptmx, _, cleanup, err := r.app.HostShellService.StartSession(cols, rows)
+	if err != nil {
+		_ = conn.WriteJSON(gin.H{"type": "error", "data": err.Error()})
+		return
+	}
+	defer cleanup()
+
+	// 终端输出 → WebSocket
+	go func() {
+		buf := make([]byte, 8192)
+		for {
+			n, rerr := ptmx.Read(buf)
+			if n > 0 {
+				if werr := conn.WriteMessage(ws.BinaryMessage, buf[:n]); werr != nil {
+					return
+				}
+			}
+			if rerr != nil {
+				return
+			}
+		}
+	}()
+
+	// WebSocket 输入 → 终端
+	for {
+		mt, message, err := conn.ReadMessage()
+		if err != nil {
+			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway, ws.CloseAbnormalClosure, ws.CloseNoStatusReceived) {
+				log.Printf("[HostShell] Read error: %v", err)
+			}
+			return
+		}
+		if mt == ws.TextMessage && len(message) > 0 && message[0] == '{' {
+			var resize struct {
+				Type string `json:"type"`
+				Cols int    `json:"cols"`
+				Rows int    `json:"rows"`
+			}
+			if json.Unmarshal(message, &resize) == nil && resize.Type == "resize" {
+				_ = r.app.HostShellService.Resize(ptmx, uint32(resize.Cols), uint32(resize.Rows))
+				continue
+			}
+		}
+		if _, err := ptmx.Write(message); err != nil {
 			return
 		}
 	}

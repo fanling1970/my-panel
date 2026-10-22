@@ -37,6 +37,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     docker-cli \
     docker-cli-compose \
+    util-linux \
     tzdata \
     ca-certificates && \
     mkdir -p /app/compose_projects

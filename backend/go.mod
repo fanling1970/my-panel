@@ -3,6 +3,7 @@ module rabbit-panel
 go 1.25.0
 
 require (
+	github.com/creack/pty v1.1.21
 	github.com/docker/docker v25.0.6+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gin-gonic/gin v1.12.0
