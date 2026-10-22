@@ -26,6 +26,18 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="!hostMode.available && hostMode.reason"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin: 8px 0 0"
+    >
+      <template #title>
+        直通模式不可用：{{ hostMode.reason }}。可点击「SSH 配置」改用 SSH 连接宿主机。
+      </template>
+    </el-alert>
+
     <div class="terminal-body">
       <div
         v-for="s in sessions"
@@ -162,6 +174,9 @@ function openHostSession() {
   if (hostMode.value.available) {
     createHostSession('direct')
     return
+  }
+  if (hostMode.value.reason) {
+    ElMessage.warning(`直通模式不可用：${hostMode.value.reason}`)
   }
   if (hostConfig.value) {
     createHostSession('ssh')

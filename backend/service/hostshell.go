@@ -38,10 +38,12 @@ func (s *HostShellService) StartSession(cols, rows uint32) (*os.File, *exec.Cmd,
 		rows = 24
 	}
 
-	// 进入宿主机的 mount/uts/ipc/net/pid 命名空间（不切换 user 命名空间）
+	// 进入宿主机的 mount/uts/ipc/net/pid 命名空间（不切换 user 命名空间）。
+	// 与手动验证一致的参数：nsenter -t 1 --pid --mount --uts --ipc --net /bin/sh
+	// 不使用 --wd，避免不同版本 nsenter（util-linux / busybox applet）兼容性问题。
 	cmd := exec.Command(nsenter,
 		"-t", "1",
-		"--mount", "--uts", "--ipc", "--net", "--pid", "--wd",
+		"--mount", "--uts", "--ipc", "--net", "--pid",
 		"/bin/sh",
 	)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
