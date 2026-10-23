@@ -61,8 +61,10 @@
 
       <!-- Container table -->
       <el-table
+        ref="tableRef"
         v-loading="containerStore.loading"
         :data="containerStore.paginatedContainers"
+        row-key="id"
         stripe
         style="width: 100%"
         @selection-change="handleSelectionChange"
@@ -372,7 +374,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, onUnmounted, reactive } from 'vue'
+import { ref, onMounted, watch, computed, onUnmounted, reactive, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -485,6 +487,24 @@ onUnmounted(() => {
   if (listPollTimer) clearInterval(listPollTimer)
 })
 
+// 轮询刷新数据后，el-table 数据数组整体替换会丢失勾选状态，恢复它
+watch(
+  () => containerStore.paginatedContainers,
+  async () => {
+    if (selectedIds.value.length === 0) return
+    await nextTick()
+    const tbl = tableRef.value
+    if (!tbl) return
+    // 先全清，再按 selectedIds 勾选新数据中仍然存在的行
+    tbl.clearSelection()
+    const idSet = new Set(selectedIds.value)
+    const rowsToSelect = containerStore.paginatedContainers.filter((c: any) => idSet.has(c.id))
+    rowsToSelect.forEach((row: any) => tbl.toggleRowSelection(row, true))
+    // 如果有些被选中的容器已经被删除，把它们从 selectedIds 也移除
+    selectedIds.value = rowsToSelect.map((r: any) => r.id)
+  }
+)
+
 // Responsive state
 const windowWidth = ref(window.innerWidth)
 const isMobile = computed(() => windowWidth.value < 768)
@@ -509,6 +529,7 @@ const pageSizeValue = ref(containerStore.pageSize)
 
 // Dialog visibility
 const showCreateDialog = ref(false)
+const tableRef = ref<any>(null)
 const showDockerRunDialog = ref(false)
 const showLogsDialog = ref(false)
 const showTerminalDialog = ref(false)

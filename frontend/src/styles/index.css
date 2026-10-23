@@ -248,21 +248,33 @@ html.dark .el-button.btn-outline:hover {
   margin-right: 4px !important;
 }
 
-/* ========= 统一表格行距（所有页面共用） ========= */
+/* ========= 统一表格行距 + 表头（所有页面共用，以网络管理 IPv4 双行高度为基准） ========= */
 .el-table {
   --el-table-bg-color: var(--rp-card-bg);
   --el-table-tr-bg-color: var(--rp-card-bg);
-  --el-table-header-bg-color: var(--rp-header-bg);
+  --el-table-header-bg-color: #f5f7fa;
   font-size: 14px;
+}
+/* 表头：浅灰底 + 加粗深色字（容器管理风格） */
+.el-table th.el-table__cell {
+  padding: 0 !important;
+  background-color: #f5f7fa !important;
+  color: #303133 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
 }
 .el-table .el-table__cell { padding: 0 !important; }
+/* 行高统一：上下各 14px（网络管理 IPv4 双行自然撑高即为 ~14+14+内容） */
 .el-table .cell {
   line-height: 1.6 !important;
-  padding-top: 10px !important;
-  padding-bottom: 10px !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
   font-size: 14px;
 }
-.el-table th.el-table__cell { padding: 0; }
+html.dark .el-table th.el-table__cell {
+  background-color: #2a2a2a !important;
+  color: #e5eaf3 !important;
+}
 
 /* ========= 页面布局通用 ========= */
 .page-header {

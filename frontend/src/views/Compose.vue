@@ -33,7 +33,7 @@
             link
             type="primary"
             size="small"
-            @click="goToProjectDir(row.name)"
+            @click="goToProjectDir(row.dir)"
           >
             打开目录
           </el-button>
