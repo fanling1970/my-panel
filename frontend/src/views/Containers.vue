@@ -883,6 +883,9 @@ onMounted(async () => {
 .page-header,
 .batch-bar,
 .pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
   flex-shrink: 0;
 }
 

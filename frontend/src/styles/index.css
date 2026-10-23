@@ -264,11 +264,11 @@ html.dark .el-button.btn-outline:hover {
   font-size: 14px !important;
 }
 .el-table .el-table__cell { padding: 0 !important; }
-/* 行高统一：上下各 14px（网络管理 IPv4 双行自然撑高即为 ~14+14+内容） */
+/* 行高统一：单行 68px（上下各 23px + line-height 22.4px） */
 .el-table .cell {
   line-height: 1.6 !important;
-  padding-top: 14px !important;
-  padding-bottom: 14px !important;
+  padding-top: 23px !important;
+  padding-bottom: 23px !important;
   font-size: 14px;
 }
 html.dark .el-table th.el-table__cell {
