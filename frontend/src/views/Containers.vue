@@ -61,7 +61,6 @@
 
       <!-- Container table -->
       <el-table
-        ref="tableRef"
         v-loading="containerStore.loading"
         :data="containerStore.paginatedContainers"
         row-key="id"
@@ -69,7 +68,7 @@
         style="width: 100%"
         @selection-change="handleSelectionChange"
       >
-      <el-table-column type="selection" width="42" />
+      <el-table-column type="selection" width="42" reserve-selection />
       <el-table-column
         prop="name"
         :label="t('common.name')"
@@ -374,7 +373,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, onUnmounted, reactive, nextTick } from 'vue'
+import { ref, onMounted, watch, computed, onUnmounted, reactive } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -478,7 +477,7 @@ watch(statsSignature, () => {
 }, { immediate: true })
 
 // 静默轮询：列表 5 秒刷新一次，页面数据接近实时且无 loading 闪烁
-// stats 不再单独轮询（之前 5 秒刷新会导致 CPU/内存数值跳动）
+// 行选中状态由 el-table 的 reserve-selection 自动保留（配合 row-key="id"）
 let listPollTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   listPollTimer = setInterval(() => containerStore.fetchContainers(true), 5000)
@@ -486,24 +485,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (listPollTimer) clearInterval(listPollTimer)
 })
-
-// 轮询刷新数据后，el-table 数据数组整体替换会丢失勾选状态，恢复它
-watch(
-  () => containerStore.paginatedContainers,
-  async () => {
-    if (selectedIds.value.length === 0) return
-    await nextTick()
-    const tbl = tableRef.value
-    if (!tbl) return
-    // 先全清，再按 selectedIds 勾选新数据中仍然存在的行
-    tbl.clearSelection()
-    const idSet = new Set(selectedIds.value)
-    const rowsToSelect = containerStore.paginatedContainers.filter((c: any) => idSet.has(c.id))
-    rowsToSelect.forEach((row: any) => tbl.toggleRowSelection(row, true))
-    // 如果有些被选中的容器已经被删除，把它们从 selectedIds 也移除
-    selectedIds.value = rowsToSelect.map((r: any) => r.id)
-  }
-)
 
 // Responsive state
 const windowWidth = ref(window.innerWidth)
@@ -529,7 +510,6 @@ const pageSizeValue = ref(containerStore.pageSize)
 
 // Dialog visibility
 const showCreateDialog = ref(false)
-const tableRef = ref<any>(null)
 const showDockerRunDialog = ref(false)
 const showLogsDialog = ref(false)
 const showTerminalDialog = ref(false)
@@ -857,36 +837,38 @@ onMounted(async () => {
 .containers-page {
   margin: -20px; /* 抵消 main-content 的 20px padding，让本页占满 */
   padding: 12px 20px 20px;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
 }
 
+/* 标题左上角 + 菜单按钮紧跟标题右侧 */
 .page-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
 .containers-page :deep(.el-table) {
   width: 100%;
 }
 
+/* 内容随页面滚动，不要内部滚动条 */
 .table-scroll {
-  flex: 1;
   min-height: 0;
-  overflow-y: auto;
 }
 
-.page-header,
-.batch-bar,
+/* 批量操作栏也靠左 */
+.batch-bar {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;
   margin-top: 20px;
-  flex-shrink: 0;
 }
 
 .page-header h2 {
