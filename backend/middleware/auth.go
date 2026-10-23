@@ -56,15 +56,6 @@ func AuthMiddleware(jwtSecret []byte, publicPaths ...string) gin.HandlerFunc {
 			return
 		}
 
-		// Check if password change required
-		if claims.NeedChangePassword && path != "/api/auth/change-password" {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":                "需要修改密码",
-				"need_change_password": true,
-			})
-			return
-		}
-
 		// Set username in context for downstream handlers
 		c.Set("username", claims.Username)
 		c.Next()

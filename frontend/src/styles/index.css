@@ -1,16 +1,57 @@
-/* Global Styles */
-:root {
-  --rp-bg-color: #ffffff;
-  --rp-text-color: #303133;
-  --rp-border-color: #dcdfe6;
-  --rp-header-bg: #f5f7fa;
-  --rp-sidebar-bg: #ffffff;
-  --rp-card-bg: #ffffff;
-  --rp-hover-bg: #f5f7fa;
-  --rp-font-size: 14px;
-  --rp-sidebar-width: 200px;
+/* ==========================================================
+   My Panel — Design System（dpanel 风格）
+   所有颜色/字号/间距/按钮/表格/布局 在此一次性定义
+   ========================================================== */
 
-  /* Element Plus 主色统一为 1panel 蓝（原 #409eff → #1677ff） */
+/* ---------- 1. Design Tokens ---------- */
+:root {
+  /* 品牌主色（dpanel / 1panel / Ant Design 统一） */
+  --mp-primary: #1677ff;
+  --mp-primary-hover: #4096ff;
+  --mp-primary-active: #0958d9;
+  --mp-primary-soft: #e6f4ff;
+
+  --mp-danger: #ff4d4f;
+  --mp-danger-hover: #ff7875;
+  --mp-danger-active: #d9363e;
+  --mp-danger-soft: #fff2f0;
+
+  --mp-success: #52c41a;
+  --mp-success-soft: #f6ffed;
+  --mp-warning: #faad14;
+  --mp-warning-soft: #fffbe6;
+
+  /* 中性色 */
+  --mp-text: #1f2937;
+  --mp-text-secondary: #6b7280;
+  --mp-text-tertiary: #9ca3af;
+  --mp-border: #e5e7eb;
+  --mp-border-light: #f3f4f6;
+  --mp-bg: #ffffff;
+  --mp-bg-page: #f5f7fa;
+  --mp-bg-card: #ffffff;
+  --mp-bg-hover: #f9fafb;
+
+  /* 侧边栏 */
+  --mp-sidebar-bg: #001529;
+  --mp-sidebar-bg-hover: #1677ff1a;
+  --mp-sidebar-bg-active: #1677ff;
+  --mp-sidebar-text: rgba(255, 255, 255, 0.85);
+  --mp-sidebar-text-dim: rgba(255, 255, 255, 0.65);
+
+  /* 尺寸 */
+  --mp-radius: 6px;
+  --mp-radius-sm: 4px;
+  --mp-radius-lg: 8px;
+  --mp-spacing-xs: 4px;
+  --mp-spacing-sm: 8px;
+  --mp-spacing-md: 12px;
+  --mp-spacing-lg: 16px;
+  --mp-spacing-xl: 24px;
+  --mp-sidebar-width: 220px;
+  --mp-header-height: 56px;
+
+  /* Element Plus 全局主色覆盖 */
   --el-color-primary: #1677ff;
   --el-color-primary-light-3: #4096ff;
   --el-color-primary-light-5: #69b1ff;
@@ -18,325 +59,238 @@
   --el-color-primary-light-8: #b8dcff;
   --el-color-primary-light-9: #e6f4ff;
   --el-color-primary-dark-2: #0958d9;
-
-  /* 按钮调色板（参考 1Panel 风格） */
-  --rp-primary: #1677ff;
-  --rp-primary-hover: #4096ff;
-  --rp-primary-active: #0958d9;
-  --rp-primary-soft: #e6f4ff;
-  --rp-danger: #ff4d4f;
-  --rp-danger-hover: #ff7875;
-  --rp-danger-active: #d9363e;
-  --rp-danger-soft: #fff2f0;
-  --rp-success: #52c41a;
-  --rp-warning: #faad14;
-
-  /* Responsive breakpoints (matching Element Plus) */
-  --rp-breakpoint-xs: 768px;
-  --rp-breakpoint-sm: 992px;
-  --rp-breakpoint-md: 1200px;
-  --rp-breakpoint-lg: 1920px;
+  --el-border-radius-base: 6px;
 }
 
+/* ---------- 2. Dark Mode ---------- */
 html.dark {
-  --rp-bg-color: #1e1e1e;
-  --rp-text-color: #e5eaf3;
-  --rp-border-color: #3a3a3a;
-  --rp-header-bg: #252525;
-  --rp-sidebar-bg: #252525;
-  --rp-card-bg: #252525;
-  --rp-hover-bg: #2e2e2e;
+  --mp-text: #e5eaf3;
+  --mp-text-secondary: #a3a6ad;
+  --mp-border: #3a3a3a;
+  --mp-border-light: #2a2a2a;
+  --mp-bg: #1e1e1e;
+  --mp-bg-page: #141414;
+  --mp-bg-card: #252525;
+  --mp-bg-hover: #2e2e2e;
+  --mp-sidebar-bg: #0d1117;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html, body, #app {
-  height: 100%;
-  width: 100%;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-  font-size: var(--rp-font-size);
-}
-
+/* ---------- 3. Reset ---------- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #app { height: 100%; width: 100%; }
 body {
-  background-color: var(--rp-bg-color);
-  color: var(--rp-text-color);
-  transition: background-color 0.3s, color 0.3s;
-  font-size: var(--rp-font-size);
+  background: var(--mp-bg-page);
+  color: var(--mp-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.5715;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar Styles */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* ---------- 4. Scrollbar ---------- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #909399; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #606266; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 html.dark ::-webkit-scrollbar-thumb { background: #4c4d4f; }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #606266; }
 
-/* ========= Element Plus Overrides ========= */
-.el-card { background-color: var(--rp-card-bg); }
-
-/* 链接/操作文字统一深蓝 */
-.el-button.is-link.is-primary,
-.el-button.is-text.is-primary {
-  --el-button-text-color: #1677ff !important;
-  --el-button-hover-text-color: #4096ff !important;
-  color: #1677ff !important;
-}
-a, .container-name { color: #1677ff !important; }
-
-/* ========= 全项目蓝色文字统一 #1677ff ========= */
-/* el-link primary（文件管理名称、compose名称、网络/存储卷/镜像ID 等） */
+/* ---------- 5. Element Plus 组件级覆盖（用 CSS 变量而非 !important） ---------- */
 .el-link.el-link--primary {
-  --el-link-text-color: #1677ff !important;
-  --el-link-hover-text-color: #4096ff !important;
-  color: #1677ff !important;
+  --el-link-text-color: #1677ff;
+  --el-link-hover-text-color: #4096ff;
 }
-/* el-button link/text primary（编辑/日志/控制台/终端/打开/复制路径/重命名 等操作列） */
-.el-button.is-link.el-button--primary,
 .el-button.is-link.is-primary,
-.el-button.is-text.el-button--primary,
 .el-button.is-text.is-primary {
-  --el-button-text-color: #1677ff !important;
-  --el-button-hover-text-color: #4096ff !important;
-  color: #1677ff !important;
+  --el-button-text-color: #1677ff;
+  --el-button-hover-text-color: #4096ff;
 }
-/* el-tag primary（网络驱动、存储卷驱动 等） */
-.el-tag.el-tag--primary {
-  --el-tag-text-color: #1677ff !important;
-  color: #1677ff !important;
-}
-/* el-select / el-input focus 边框、el-pagination 激活页码 */
-.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
-  background-color: #1677ff !important;
-}
-/* el-radio / el-checkbox / el-switch 激活态 */
-.el-radio__input.is-checked .el-radio__inner {
-  border-color: #1677ff !important;
-  background: #1677ff !important;
-}
+.el-tag.el-tag--primary { color: #1677ff; }
+.el-switch.is-checked .el-switch__core,
+.el-radio__input.is-checked .el-radio__inner,
 .el-checkbox__input.is-checked .el-checkbox__inner {
-  background-color: #1677ff !important;
-  border-color: #1677ff !important;
+  background-color: #1677ff;
+  border-color: #1677ff;
 }
-.el-switch.is-checked .el-switch__core {
-  background-color: #1677ff !important;
-  border-color: #1677ff !important;
+.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: #1677ff;
 }
-/* el-tab 激活项 */
-.el-tabs__item.is-active, .el-tabs__item:hover {
-  color: #1677ff !important;
-}
-.el-tabs__active-bar {
-  background-color: #1677ff !important;
-}
-/* el-menu 激活项 */
-.el-menu-item.is-active {
-  color: #1677ff !important;
-}
-/* el-step / el-progress / el-slider 等 */
-.el-progress-bar__inner {
-  background-color: #1677ff !important;
-}
-/* 全局普通链接 hover */
-a:hover { color: #4096ff !important; }
+.el-tabs__item.is-active,
+.el-tabs__item:hover { color: #1677ff; }
+.el-tabs__active-bar { background-color: #1677ff; }
+.el-progress-bar__inner { background-color: #1677ff; }
+.el-card { background: var(--mp-bg-card); border-radius: var(--mp-radius-lg); }
 
-/* ========= 按钮统一（参考 1Panel 风格） ========= */
-/* 主按钮：蓝实底，用于"创建/查询/启动/控制台/编辑任务" */
-.btn-create,
-.el-button.btn-create,
-.el-button.btn-primary-solid {
-  background-color: var(--rp-primary) !important;
-  border-color: var(--rp-primary) !important;
-  color: #fff !important;
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  padding: 8px 20px !important;
-  height: auto !important;
-  transition: all 0.2s !important;
+/* ---------- 6. 按钮系统（5 种，全项目复用） ---------- */
+/* 6a. 主按钮 — 蓝实底，用于"创建/确认/启动/构建/执行/保存" */
+.mp-btn-primary {
+  background: var(--mp-primary);
+  border-color: var(--mp-primary);
+  color: #fff;
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+  height: auto;
+  transition: all 0.2s;
 }
-.btn-create:hover,
-.el-button.btn-create:hover,
-.el-button.btn-primary-solid:hover {
-  background-color: var(--rp-primary-hover) !important;
-  border-color: var(--rp-primary-hover) !important;
-}
-.btn-create:active,
-.el-button.btn-create:active,
-.el-button.btn-primary-solid:active {
-  background-color: var(--rp-primary-active) !important;
-  border-color: var(--rp-primary-active) !important;
-}
+.mp-btn-primary:hover { background: var(--mp-primary-hover); border-color: var(--mp-primary-hover); }
+.mp-btn-primary:active { background: var(--mp-primary-active); border-color: var(--mp-primary-active); }
 
-/* 次要按钮：白底灰边框，用于"刷新/重启/暂停/日志/目录/重置/更新" */
-.btn-outline,
-.el-button.btn-outline,
-.el-button.is-not-text.btn-outline {
-  background-color: #fff !important;
-  border-color: #d9d9d9 !important;
-  color: #333 !important;
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  padding: 8px 20px !important;
-  transition: all 0.2s !important;
+/* 6b. 次按钮 — 白底描边，用于"刷新/日志/重启/暂停/目录/检测更新/取消" */
+.mp-btn-outline {
+  background: #fff;
+  border-color: #d9d9d9;
+  color: var(--mp-text);
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+  transition: all 0.2s;
 }
-.btn-outline:hover,
-.el-button.btn-outline:hover {
-  border-color: var(--rp-primary) !important;
-  color: var(--rp-primary) !important;
-  background-color: #fff !important;
-}
-html.dark .btn-outline,
-html.dark .el-button.btn-outline {
-  background-color: #2a2a2a !important;
-  border-color: #444 !important;
-  color: #e5eaf3 !important;
-}
-html.dark .btn-outline:hover,
-html.dark .el-button.btn-outline:hover {
-  border-color: var(--rp-primary-hover) !important;
-  color: var(--rp-primary-hover) !important;
-}
+.mp-btn-outline:hover { border-color: var(--mp-primary); color: var(--mp-primary); }
+html.dark .mp-btn-outline { background: #2a2a2a; border-color: #444; color: #e5eaf3; }
+html.dark .mp-btn-outline:hover { border-color: var(--mp-primary-hover); color: var(--mp-primary-hover); }
 
-/* 危险实底按钮：用于"删除/删除容器/强制停止" */
-.btn-danger-solid,
-.el-button.btn-danger-solid {
-  background-color: var(--rp-danger) !important;
-  border-color: var(--rp-danger) !important;
-  color: #fff !important;
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  padding: 8px 20px !important;
-  transition: all 0.2s !important;
+/* 6c. 危险实底 — 用于"删除/强制停止" */
+.mp-btn-danger {
+  background: var(--mp-danger);
+  border-color: var(--mp-danger);
+  color: #fff;
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+  transition: all 0.2s;
 }
-.btn-danger-solid:hover,
-.el-button.btn-danger-solid:hover {
-  background-color: var(--rp-danger-hover) !important;
-  border-color: var(--rp-danger-hover) !important;
-}
+.mp-btn-danger:hover { background: var(--mp-danger-hover); border-color: var(--mp-danger-hover); }
 
-/* 危险边框按钮：用于"停止/重新部署" */
-.btn-danger-plain,
-.el-button.btn-danger-plain {
-  background-color: #fff !important;
-  border-color: var(--rp-danger) !important;
-  color: var(--rp-danger) !important;
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  padding: 8px 20px !important;
-  transition: all 0.2s !important;
+/* 6d. 危险描边 — 用于"停止/重新部署/卸载" */
+.mp-btn-danger-outline {
+  background: #fff;
+  border-color: var(--mp-danger);
+  color: var(--mp-danger);
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+  transition: all 0.2s;
 }
-.btn-danger-plain:hover,
-.el-button.btn-danger-plain:hover {
-  background-color: var(--rp-danger) !important;
-  color: #fff !important;
-}
+.mp-btn-danger-outline:hover { background: var(--mp-danger); color: #fff; }
 
-/* 表格内小操作链接：用于"终端/日志/编辑/更新" */
-.btn-link-sm,
-.el-button.btn-link-sm {
-  font-size: 13px !important;
-  padding: 4px 8px !important;
-  height: auto !important;
-  margin-right: 4px !important;
+/* 6e. 成功实底 */
+.mp-btn-success {
+  background: var(--mp-success);
+  border-color: var(--mp-success);
+  color: #fff;
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+  transition: all 0.2s;
 }
+.mp-btn-success:hover { background: #73d13d; border-color: #73d13d; }
 
-/* ========= 统一表格行距 + 表头（所有页面共用，以网络管理 IPv4 双行高度为基准） ========= */
-.el-table {
-  --el-table-bg-color: var(--rp-card-bg);
-  --el-table-tr-bg-color: var(--rp-card-bg);
-  --el-table-header-bg-color: #f5f7fa;
+/* 旧类名兼容（上轮遗留），映射到新系统 */
+.btn-create, .btn-primary-solid { composes: mp-btn-primary; }
+.btn-outline { composes: mp-btn-outline; }
+.btn-danger-solid { composes: mp-btn-danger; }
+.btn-danger-plain { composes: mp-btn-danger-outline; }
+
+/* ---------- 7. 表格系统（所有页面统一） ---------- */
+.mp-table {
+  border-radius: var(--mp-radius-lg);
+  overflow: hidden;
+}
+.mp-table :deep(.el-table) {
+  --el-table-bg-color: var(--mp-bg-card);
+  --el-table-tr-bg-color: var(--mp-bg-card);
+  --el-table-header-bg-color: var(--mp-border-light);
+  font-size: 14px;
+  border-radius: var(--mp-radius-lg);
+}
+.mp-table :deep(.el-table th.el-table__cell) {
+  padding: 0;
+  background: var(--mp-border-light) !important;
+  color: var(--mp-text);
+  font-weight: 600;
   font-size: 14px;
 }
-/* 表头：浅灰底 + 加粗深色字（容器管理风格） */
-.el-table th.el-table__cell {
-  padding: 0 !important;
-  background-color: #f5f7fa !important;
-  color: #303133 !important;
-  font-weight: 600 !important;
-  font-size: 14px !important;
+.mp-table :deep(.el-table td.el-table__cell) { padding: 0; }
+.mp-table :deep(.el-table .cell) {
+  line-height: 1.5715;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
-.el-table .el-table__cell { padding: 0 !important; }
-/* 行高统一：单行 68px（上下各 23px + line-height 22.4px） */
-.el-table .cell {
-  line-height: 1.6 !important;
-  padding-top: 23px !important;
-  padding-bottom: 23px !important;
-  font-size: 14px;
-}
-html.dark .el-table th.el-table__cell {
-  background-color: #2a2a2a !important;
-  color: #e5eaf3 !important;
+html.dark .mp-table :deep(.el-table th.el-table__cell) {
+  background: #2a2a2a !important;
+  color: #e5eaf3;
 }
 
-/* ========= 页面布局通用 ========= */
-.page-header {
+/* 表格内操作链接组 */
+.mp-table-actions {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.mp-table-actions .el-button + .el-button { margin-left: 2px; }
+
+/* ---------- 8. 页面布局骨架 ---------- */
+.mp-page {
+  padding: 16px 20px 20px;
+}
+.mp-page-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 20px 0;
   gap: 16px;
+  margin-bottom: 16px;
 }
-.page-header h2 {
+.mp-page-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
+  color: var(--mp-text);
 }
-.header-actions {
+.mp-page-header .mp-header-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
-
-.filter-bar {
+.mp-filter-bar {
   display: flex;
   gap: 12px;
   align-items: center;
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
+.mp-batch-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--mp-primary-soft);
+  border-radius: var(--mp-radius);
+  color: var(--mp-primary-active);
+  font-size: 13px;
+}
+.mp-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
 
-/* ========= 对话框底部按钮区 ========= */
+/* ---------- 9. 对话框/抽屉底部 ---------- */
 .el-dialog .el-dialog__footer,
 .el-drawer .el-drawer__footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
-/* ========= 响应式 ========= */
-@media (max-width: 767px) {
-  .hidden-xs-only { display: none !important; }
-  .page-header { flex-direction: column; align-items: flex-start; }
-  .page-header .header-actions { width: 100%; flex-wrap: wrap; }
-  .page-header .header-actions .el-button { flex: 1; min-width: 100px; }
-  .filter-bar { flex-direction: column; }
-  .filter-bar .el-input, .filter-bar .el-select { width: 100% !important; }
-  .pagination-wrapper { justify-content: center; }
-  .pagination-wrapper .el-pagination { flex-wrap: wrap; justify-content: center; gap: 8px; }
-}
-@media (max-width: 991px) {
-  .el-table { font-size: 13px; }
-  .el-table .el-table__cell { padding: 8px 0; }
-  .hidden-sm-and-down { display: none !important; }
-}
-@media (max-width: 1199px) {
-  .hidden-md-and-down { display: none !important; }
-}
-@media (min-width: 768px) {
-  .hidden-sm-and-up { display: none !important; }
-}
-@media (min-width: 1200px) {
-  .hidden-md-and-up { display: none !important; }
-}
-@media (min-width: 992px) {
-  .hidden-sm-and-up { display: none !important; }
+/* ---------- 10. 链接 ---------- */
+a { color: var(--mp-primary); text-decoration: none; }
+a:hover { color: var(--mp-primary-hover); }
+
+/* ---------- 11. 响应式 ---------- */
+@media (max-width: 768px) {
+  .mp-page-header { flex-direction: column; align-items: flex-start; }
+  .mp-filter-bar { flex-direction: column; }
 }
