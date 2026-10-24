@@ -187,11 +187,46 @@ html.dark .mp-btn-outline:hover { border-color: var(--mp-primary-hover); color: 
 }
 .mp-btn-success:hover { background: #73d13d; border-color: #73d13d; }
 
-/* 旧类名兼容（上轮遗留），映射到新系统 */
-.btn-create, .btn-primary-solid { composes: mp-btn-primary; }
-.btn-outline { composes: mp-btn-outline; }
-.btn-danger-solid { composes: mp-btn-danger; }
-.btn-danger-plain { composes: mp-btn-danger-outline; }
+/* 旧类名兼容（上轮遗留），复制新系统属性 */
+.btn-create, .btn-primary-solid {
+  background: var(--mp-primary);
+  border-color: var(--mp-primary);
+  color: #fff;
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+}
+.btn-create:hover, .btn-primary-solid:hover { background: var(--mp-primary-hover); border-color: var(--mp-primary-hover); }
+
+.btn-outline {
+  background: #fff;
+  border-color: #d9d9d9;
+  color: var(--mp-text);
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+}
+.btn-outline:hover { border-color: var(--mp-primary); color: var(--mp-primary); }
+
+.btn-danger-solid {
+  background: var(--mp-danger);
+  border-color: var(--mp-danger);
+  color: #fff;
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+}
+.btn-danger-solid:hover { background: var(--mp-danger-hover); border-color: var(--mp-danger-hover); }
+
+.btn-danger-plain {
+  background: #fff;
+  border-color: var(--mp-danger);
+  color: var(--mp-danger);
+  border-radius: var(--mp-radius);
+  font-weight: 500;
+  padding: 7px 16px;
+}
+.btn-danger-plain:hover { background: var(--mp-danger); color: #fff; }
 
 /* ---------- 7. 表格系统（所有页面统一） ---------- */
 .mp-table {

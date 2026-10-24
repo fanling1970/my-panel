@@ -281,15 +281,29 @@ func serveEmbeddedFile(c *gin.Context, embeddedFS fs.FS, path string) {
 
 	fileData, err := fs.ReadFile(embeddedFS, ".dist/"+cleanPath)
 	if err != nil {
+		// assets 找不到直接 404，不要 fallback 到 index.html（会导致 SPA 白屏）
+		if strings.HasPrefix(cleanPath, "assets/") {
+			c.Header("Cache-Control", "no-cache")
+			c.Status(http.StatusNotFound)
+			return
+		}
+		// 非 assets 路径（SPA 路由）fallback 到 index.html
 		fileData, err = fs.ReadFile(embeddedFS, ".dist/index.html")
 		if err != nil {
 			c.Status(http.StatusNotFound)
 			return
 		}
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", fileData)
 		return
 	}
 
+	// 成功读取文件，设置合理的 Cache-Control
+	if strings.HasPrefix(cleanPath, "assets/") {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	}
 	c.Data(http.StatusOK, detectContentType(cleanPath), fileData)
 }
 
